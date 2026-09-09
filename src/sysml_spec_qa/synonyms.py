@@ -70,6 +70,8 @@ WORD_MAP: dict[str, list[str]] = {
     "definition": ["definition"],
     "usage": ["usage"],
     "membership": ["membership", "namespace"],
+    "distinguishability": ["distinguishable", "distinguish", "membership"],
+    "distinguishibility": ["distinguishable", "distinguish", "membership"],
     "visibility": ["visibility"],
 }
 

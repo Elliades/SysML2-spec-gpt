@@ -3,11 +3,63 @@ description: Use the SysML/KerML spec MCP instead of quoting the specification f
 alwaysApply: true
 ---
 
-When the user asks about SysML v2 or KerML language rules (names, namespaces, connectors, features, usages, constraints, grammar), call the `sysml-spec` MCP tools in this order:
+**Doc preference (default):** **always** cite **`sysml-2.x-language`** first for the primary answer. Use **`kerml-*`** only when the user explicitly mentions KerML, or as a single **exception** cite when SysML has no applicable normative rule (pack `exception`, never primary unless KerML was requested).
 
-1. `spec_element` if the question is about a named metaclass (Connector, Namespace, Feature, …)
-2. `spec_route` to get clause ids without dumping text
-3. `spec_search` for a short excerpt set (k ≤ 3)
-4. `spec_get` only for the one clause that actually answers the question
+When the user asks about SysML v2 or KerML language rules (names, namespaces, connectors, features, usages, constraints, grammar, examples), call **one** MCP tool:
 
-Never paste large specification extracts into the chat. Cite clause numbers, say whether the passage is informative (typically clause 7) or normative (clause 8+), and include the highlighted viewer links returned by the tools.
+1. `spec_element` if the question is only about a named metaclass (Connector, Namespace, Feature, …)
+2. `spec_answer_pack` for all natural-language questions (preferred)
+3. `spec_examples` only when the user asks for SysML language examples
+
+Never paste large specification extracts into the chat. Never answer from memory. Prefer `spec_answer_pack` and **one primary passage** (a second only if the pack provides `exception`). Do not dump whole clauses.
+
+## Answer shape (closed / rule questions)
+
+Follow the pack `answer_contract.shape` in order:
+
+1. **Réponse** — one sentence (decision or definition).
+2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question. Then **one** integrated citation: `La spec : « [exact quote_en] » ([doc] [clause], informative|normative) — [session_url or reader_url]`. If answering in French, add a faithful translation immediately after; never replace the English quote.
+3. **Exception** — only if the pack provides `exception`; at most one extra citation. Omit this section if `exception` is null.
+4. **Conclusion** — one operational sentence.
+5. **Coût** — `recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} € (input agent, index local gratuit)` using values from pack `cost`.
+
+Open questions (what / how): same order — definition first, then one integrated English citation. Never a pile of source blocks.
+
+```
+**Non.** [the rule in one sentence]
+
+La spec : « [exact short quote_en] » ([doc] [clause], informative|normative) — [session link].
+[Faithful French translation in the same paragraph or the next line.]
+
+Possible seulement si [condition] : [reason + at most one extra citation from exception].
+
+[Conclusion in one sentence.]
+
+recherche 42 ms · pack ~180 tokens · ~0.0005 € (input agent, index local gratuit)
+```
+
+## Citation rules
+
+- Use the exact English `quote_en` from the tool. Do not paraphrase it before showing it.
+- **Always show the original English quote in chat** (integrated in the rule paragraph, or as a short blockquote immediately after it), then the faithful French translation.
+- Integrate it in the paragraph (`La spec : « … »`). Do not open a heading per source.
+- Cite doc + clause + informative (typically cl. 7) or normative (cl. 8+).
+- Include the `session_url` (multi-cite) or `reader_url` (single cite) from the pack.
+- SysML first. KerML only if the user named KerML, or SysML has no applicable rule.
+- No valide/invalide examples unless the user asks.
+
+## Bad vs good (inherited `^a` vs local `a`)
+
+**Bad:** several `quote_en` / `quote_fr` / `explanation_fr` blocks, then examples of when it “works”.
+
+**Good:**
+
+**Non.** A `partDef` cannot hold an inherited `partUsage` `^a` and a distinct local `partUsage` `a`: each name in a namespace identifies one member.
+
+La spec : « All memberships of a Namespace must be distinguishable from each other. » (`kerml-1.1` 8.3.2.4.5, normative) — [session link]. Toutes les appartenances d’un namespace doivent être distinguables.
+
+Possible seulement si le local redéfinit l’hérité (`:>>`) : the inherited feature is then replaced, so there is only one member `a`.
+
+Conclusion : déclarer un usage local `a` sans `:>>` sur l’hérité `^a` viole la distinguabilité des memberships.
+
+recherche 38 ms · pack ~165 tokens · ~0.0004 € (input agent, index local gratuit)

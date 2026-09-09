@@ -79,6 +79,89 @@ CREATE TABLE IF NOT EXISTS element_cards (
   card_json TEXT NOT NULL,
   PRIMARY KEY (name_norm, version)
 );
+
+CREATE TABLE IF NOT EXISTS passages (
+  id INTEGER PRIMARY KEY,
+  passage_id TEXT NOT NULL,
+  doc_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  clause_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  heading_path TEXT,
+  kind TEXT,
+  normative INTEGER NOT NULL DEFAULT 0,
+  page_start INTEGER NOT NULL,
+  page_end INTEGER NOT NULL,
+  part INTEGER NOT NULL DEFAULT 0,
+  text TEXT NOT NULL,
+  word_count INTEGER NOT NULL,
+  token_estimate INTEGER NOT NULL,
+  bboxes TEXT,
+  FOREIGN KEY (doc_id) REFERENCES documents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_passages_clause ON passages(version, clause_id);
+CREATE INDEX IF NOT EXISTS idx_passages_doc ON passages(doc_id, version);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS passages_fts USING fts5(
+  clause_id,
+  heading_path,
+  text,
+  doc_id,
+  tokenize = 'unicode61 remove_diacritics 1'
+);
+
+CREATE TABLE IF NOT EXISTS examples (
+  id INTEGER PRIMARY KEY,
+  example_id TEXT NOT NULL,
+  doc_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  clause_id TEXT NOT NULL,
+  language TEXT NOT NULL DEFAULT 'sysml',
+  caption TEXT,
+  page INTEGER,
+  text TEXT NOT NULL,
+  bboxes TEXT,
+  FOREIGN KEY (doc_id) REFERENCES documents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_examples_clause ON examples(version, clause_id);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS examples_fts USING fts5(
+  clause_id,
+  caption,
+  text,
+  doc_id,
+  tokenize = 'unicode61 remove_diacritics 1'
+);
+
+CREATE TABLE IF NOT EXISTS cross_refs (
+  id INTEGER PRIMARY KEY,
+  source_doc_id TEXT NOT NULL,
+  source_clause_id TEXT NOT NULL,
+  target_clause_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  context TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cross_refs_source ON cross_refs(version, source_doc_id, source_clause_id);
+CREATE INDEX IF NOT EXISTS idx_cross_refs_target ON cross_refs(version, target_clause_id);
+
+CREATE TABLE IF NOT EXISTS toc (
+  id INTEGER PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  version TEXT NOT NULL,
+  clause_id TEXT NOT NULL,
+  parent_id TEXT,
+  title TEXT NOT NULL,
+  depth INTEGER NOT NULL DEFAULT 1,
+  page_start INTEGER NOT NULL DEFAULT 1,
+  normative INTEGER NOT NULL DEFAULT 0,
+  sort_key TEXT NOT NULL,
+  FOREIGN KEY (doc_id) REFERENCES documents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_toc_doc ON toc(doc_id, version, sort_key);
 """
 
 

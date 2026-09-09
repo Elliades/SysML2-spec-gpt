@@ -5,6 +5,7 @@ from typing import Any
 
 from . import search as spec
 from .config import DEFAULT_VERSION, MAX_HITS
+from .pack import answer_pack, clause_pack, search_examples
 
 
 def _heading(hit_or_row: Any, doc_id: str, clause_id: str, title: str) -> str:
@@ -18,7 +19,9 @@ def _format_hit(hit: spec.Hit, query: str) -> str:
     return (
         f"{_heading(hit, hit.doc_id, hit.clause_id, hit.title)}\n"
         f"_{status}_ · {pages} · {hit.kind}\n"
-        f"[open highlighted]({hit.viewer_url(query)})\n\n"
+        f"[open highlighted]({hit.viewer_url(query)}) · "
+        f"[open markdown]({hit.markdown_url(query)})\n"
+        f"`{hit.md_path}`\n\n"
         f"{hit.excerpt}"
     )
 
@@ -63,7 +66,9 @@ def spec_get(clause_id: str, doc_id: str = "", version: str = DEFAULT_VERSION) -
     return (
         f"{_heading(row, row['doc_id'], row['clause_id'], row['title'])}\n"
         f"_{status}_ · p.{row['page_start']}–{row['page_end']}{note}\n"
-        f"[open highlighted]({row['viewer_url']})\n\n"
+        f"[open highlighted]({row['viewer_url']}) · "
+        f"[open markdown]({row.get('markdown_url')})\n"
+        f"`{row.get('md_path')}`\n\n"
         f"{row['text']}"
     )
 
@@ -105,22 +110,69 @@ def spec_element(name: str, version: str = DEFAULT_VERSION) -> str:
     return "\n".join(lines)
 
 
+def spec_answer_pack(
+    question: str,
+    version: str = DEFAULT_VERSION,
+    k: int = MAX_HITS,
+    include_examples: bool = False,
+) -> str:
+    """Compact JSON answer pack: primary cite, optional exception, session link, cost."""
+    try:
+        pack = answer_pack(question, version=version, k=k, include_examples=include_examples)
+    except FileNotFoundError as exc:
+        return str(exc)
+    return json.dumps(pack.to_dict(), indent=2, ensure_ascii=False)
+
+
+def spec_clause_pack(
+    clause_ids: str,
+    doc_id: str = "",
+    version: str = DEFAULT_VERSION,
+    query: str = "",
+) -> str:
+    """Open multiple cited clauses together. clause_ids is comma-separated (e.g. 7.2.5,8.3.2.4.5)."""
+    ids = [c.strip() for c in clause_ids.split(",") if c.strip()]
+    try:
+        result = clause_pack(ids, doc_id=doc_id or None, version=version, query=query)
+    except FileNotFoundError as exc:
+        return str(exc)
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
+
+def spec_examples(query: str, version: str = DEFAULT_VERSION, k: int = 3) -> str:
+    """Search SysML/KerML language examples in the spec."""
+    try:
+        examples = search_examples(query, version=version, k=k)
+    except FileNotFoundError as exc:
+        return str(exc)
+    if not examples:
+        return f"No examples for {query!r} in version {version}."
+    return json.dumps([ex.__dict__ for ex in examples], indent=2, ensure_ascii=False)
+
+
 def _attach_tools(mcp: Any) -> None:
     mcp.tool()(spec_route)
     mcp.tool()(spec_search)
     mcp.tool()(spec_get)
     mcp.tool()(spec_element)
+    mcp.tool()(spec_answer_pack)
+    mcp.tool()(spec_clause_pack)
+    mcp.tool()(spec_examples)
 
 
 def main() -> None:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 
-    mcp = FastMCP(
+    mcp = MCPServer(
         "sysml-spec",
         instructions=(
-            "Search KerML and SysML v2 language specs. Prefer spec_element for named "
-            "metaclasses, spec_route then spec_search for questions, spec_get for one clause. "
-            "Always include viewer links. Keep answers short."
+            "Search KerML and SysML v2 language specs. Default doc preference: cite "
+            "sysml-2.x-language first; use kerml-* only when the user explicitly mentions "
+            "KerML or SysML has no applicable passage. Prefer spec_element for named "
+            "metaclasses, spec_answer_pack for questions, spec_clause_pack when clause ids "
+            "are known. Always include session_url / reader_url links. Keep answers short. "
+            "Follow answer_contract.shape (verdict, rule, exception?, conclusion, cost). "
+            "For French answers, integrate exact quote_en then faithful translation."
         ),
     )
     _attach_tools(mcp)

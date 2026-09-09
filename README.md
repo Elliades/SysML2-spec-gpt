@@ -70,7 +70,15 @@ Health: `GET http://127.0.0.1:8797/api/health`
 
 Legacy `/v/…`, `/m/…`, `/pack?refs=…` redirect to the new routes.
 
-**Cursor MCP** — copy `.cursor/mcp.json` into your Cursor user or project MCP config (`SYSML_VIEWER_URL` must match the worker port). Restart Cursor, then ask:
+**Cursor MCP** — une fois le viewer démarré :
+
+```powershell
+.\scripts\install-cursor-mcp.ps1
+```
+
+Puis **redémarrer Cursor**. Le serveur `sysml-spec` apparaît dans **Settings → MCP** (config globale `%USERPROFILE%\.cursor\mcp.json` + projet). Outils : `spec_answer_pack`, `spec_element`, `spec_search`, …
+
+Copie manuelle possible depuis [`.cursor/mcp.json`](.cursor/mcp.json). Ensuite demander par exemple :
 
 - « c’est quoi les règles d’unicité des noms ? »
 - « à quoi je peux connecter un connector ? »

@@ -9,11 +9,20 @@ CLAUSE_ID_RE = re.compile(
 )
 
 CONSTRAINT_RE = re.compile(r"\b((?:check|validate|derive)[A-Z][A-Za-z0-9]+)\b")
+CONSTRAINT_NAME_LINE_RE = re.compile(r"^(?:validate|check|derive)[A-Z]")
+NORMATIVE_LINE_RE = re.compile(r"\b(must|shall)\b", re.I)
 
 WORD_RE = re.compile(r"[A-Za-z0-9_]+")
 
 HEADER_Y_RATIO = 0.045
 FOOTER_Y_RATIO = 0.045
+
+NORMATIVE_MARKERS = (" must ", " shall ", " required ", " distinguishable", " unique", " uniqu")
+
+DESCRIPTION_PENALTY = re.compile(
+    r"^\d+(?:\.\d+)*\s+\S+\s+Description\s+A\s+Namespace\s+is",
+    re.I,
+)
 
 
 def fold(text: str) -> str:
@@ -77,6 +86,125 @@ def is_normative(clause_id: str | None, title: str) -> bool:
         return int(major) >= 8
     except ValueError:
         return False
+
+
+SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"(])")
+
+
+def _sentences(text: str) -> list[str]:
+    parts = SENTENCE_RE.split(text.strip())
+    out = [p.strip() for p in parts if p.strip()]
+    if len(out) <= 2 and word_count(text) > 80:
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip() and word_count(ln) >= 6]
+        if len(lines) > len(out):
+            return lines
+    return out
+
+
+def _line_score(line: str, query_terms: list[str]) -> int:
+    hay = fold(line)
+    score = _sentence_score(line, query_terms)
+    if NORMATIVE_LINE_RE.search(line) and word_count(line) <= 35:
+        score += 12
+    if "distinguishable from each other" in hay:
+        score += 25
+    if "owned name" in hay and "unique" in hay:
+        score += 20
+    return score
+
+
+def normative_line_quote(
+    text: str, query_terms: list[str], max_words: int = 80
+) -> str | None:
+    """Pick a short normative line (constraint English sentence) when present."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    best_line: str | None = None
+    best_score = 0
+    for idx, line in enumerate(lines):
+        if CONSTRAINT_NAME_LINE_RE.match(line):
+            for nxt in lines[idx + 1 : idx + 4]:
+                if not NORMATIVE_LINE_RE.search(nxt):
+                    continue
+                if word_count(nxt) > max_words:
+                    continue
+                score = _line_score(nxt, query_terms) + 18
+                if score > best_score:
+                    best_score = score
+                    best_line = nxt
+        if not NORMATIVE_LINE_RE.search(line) or word_count(line) > max_words:
+            continue
+        score = _line_score(line, query_terms)
+        if score > best_score:
+            best_score = score
+            best_line = line
+    if best_line and best_score >= 10:
+        return best_line
+    return None
+
+
+def _sentence_score(sent: str, query_terms: list[str]) -> int:
+    hay = fold(sent)
+    score = 0
+    for term in query_terms:
+        if len(term) < 3:
+            continue
+        ft = fold(term)
+        if ft in hay:
+            score += 3 if len(term) > 5 else 2
+    for marker in NORMATIVE_MARKERS:
+        if marker in hay:
+            score += 8
+    for key in ("distinguishable", "unique", "uniqueness", "membership", "validate", "check"):
+        if key in hay:
+            score += 6
+    if DESCRIPTION_PENALTY.search(sent):
+        score -= 20
+    if "abstract syntax" in hay and "must" not in hay:
+        score -= 8
+    if hay.startswith("operations") or hay.startswith("constraints"):
+        score -= 4
+    return score
+
+
+def cite_sentence(text: str, query_terms: list[str], max_words: int = 80, min_words: int = 40) -> str:
+    """Extract 1–2 normative sentences around the best matching term."""
+    pinned = normative_line_quote(text, query_terms, max_words=max_words)
+    if pinned:
+        return pinned
+    sentences = _sentences(text)
+    if not sentences:
+        return excerpt(text, query_terms, max_words)
+    if len(sentences) == 1:
+        words = WORD_RE.findall(sentences[0])
+        if len(words) <= max_words:
+            return sentences[0]
+        return " ".join(words[:max_words]).strip() + " …"
+
+    best_idx = 0
+    best_score = -999
+    for idx, sent in enumerate(sentences):
+        score = _sentence_score(sent, query_terms)
+        if score > best_score:
+            best_score = score
+            best_idx = idx
+
+    picked: list[str] = [sentences[best_idx]]
+    total = word_count(picked[0])
+    if total < min_words and best_idx + 1 < len(sentences):
+        nxt = sentences[best_idx + 1]
+        if total + word_count(nxt) <= max_words:
+            picked.append(nxt)
+            total += word_count(nxt)
+    if total < min_words and best_idx > 0:
+        prev = sentences[best_idx - 1]
+        if total + word_count(prev) <= max_words:
+            picked.insert(0, prev)
+
+    quote = " ".join(picked).strip()
+    words = WORD_RE.findall(quote)
+    if len(words) > max_words:
+        quote = " ".join(words[:max_words]).strip() + " …"
+    return quote
 
 
 def excerpt(text: str, query_terms: list[str], max_words: int) -> str:
@@ -160,4 +288,4 @@ def fts_query(terms: list[str]) -> str:
             parts.append(f'"{tok}"')
         else:
             parts.append(f"{tok}*")
-    return " OR ".join(parts[:24])
+    return " OR ".join(parts[:12])

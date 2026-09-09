@@ -14,7 +14,7 @@
 param(
     [string]$Root = '',
     [int]$Port = 0,
-    [string]$HostBind = '127.0.0.1',
+    [string]$HostBind = '0.0.0.0',
     [int]$RestartSeconds = 8
 )
 
@@ -62,6 +62,15 @@ function Test-PortListening([int]$ListenPort) {
     }
 }
 
+function Test-WorkerHealth([string]$HealthUrl) {
+    try {
+        $h = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 4
+        return ($h.status -eq 'ok' -or $h.status -eq 'degraded')
+    } catch {
+        return $false
+    }
+}
+
 function Stop-ExistingWorker([string]$RepoRoot, [int]$ListenPort) {
     Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" -ErrorAction SilentlyContinue |
         Where-Object {
@@ -82,11 +91,17 @@ $python = Resolve-Python $Root
 $env:SYSML_SPEC_ROOT = $Root
 $env:SYSML_VIEWER_HOST = $HostBind
 $env:SYSML_VIEWER_PORT = "$Port"
-$env:SYSML_VIEWER_URL = "http://${HostBind}:$Port"
+$env:SYSML_VIEWER_URL = "http://127.0.0.1:$Port"
+$healthLocal = "http://127.0.0.1:$Port/api/health"
 
 $dbPath = Join-Path $Root 'data\index\spec.sqlite'
 if (-not (Test-Path $dbPath)) {
     Write-Log "WARNING index missing at $dbPath - run: python -m sysml_spec_qa ingest --version 2.0"
+}
+
+if ((Test-PortListening $Port) -and (Test-WorkerHealth $healthLocal)) {
+    Write-Log "Already running on port $Port (health ok)"
+    exit 0
 }
 
 Stop-ExistingWorker -RepoRoot $Root -ListenPort $Port
@@ -99,7 +114,7 @@ while ($true) {
         continue
     }
 
-    Write-Log "Starting viewer on http://${HostBind}:$Port"
+    Write-Log "Starting viewer on http://127.0.0.1:$Port (bind $HostBind)"
     $proc = Start-Process -FilePath $python `
         -ArgumentList @('-m', 'sysml_spec_qa', 'serve') `
         -WorkingDirectory $Root `

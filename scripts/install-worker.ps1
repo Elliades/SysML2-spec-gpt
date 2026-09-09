@@ -27,7 +27,7 @@ if ($Port -le 0) {
 }
 
 $userId = if ($env:USERDOMAIN -and $env:USERNAME) { "$env:USERDOMAIN\$env:USERNAME" } else { $env:USERNAME }
-$workerArgs = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$worker`" -Root `"$Root`" -Port $Port"
+$workerArgs = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$worker`" -Root `"$Root`" -Port $Port -HostBind 0.0.0.0"
 
 function Register-WorkerTask {
     param([string]$Name, [string]$Argument, $Triggers)
@@ -68,6 +68,16 @@ if (-not $taskOk) {
     }
 }
 
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).
+    IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if ($isAdmin) {
+    netsh advfirewall firewall delete rule name="SysmlSpecQa-$Port" | Out-Null
+    netsh advfirewall firewall add rule name="SysmlSpecQa-$Port" dir=in action=allow protocol=TCP localport=$Port profile=any | Out-Null
+    Write-Host "Firewall rule added for port $Port" -ForegroundColor Green
+} else {
+    Write-Host "Not elevated - skip firewall (Tailscale/LAN probe may fail until re-run as admin)" -ForegroundColor Yellow
+}
+
 $startup = [Environment]::GetFolderPath('Startup')
 $shortcutPath = Join-Path $startup $ShortcutName
 $ws = New-Object -ComObject WScript.Shell
@@ -97,7 +107,7 @@ try {
 }
 
 Write-Host ""
-Write-Host "Viewer: http://127.0.0.1:$Port" -ForegroundColor Cyan
+Write-Host "Viewer: http://127.0.0.1:$Port (local) | http://quatermaster:$Port (LAN/Tailscale)" -ForegroundColor Cyan
 Write-Host "Health: $healthUrl" -ForegroundColor Cyan
 Write-Host "Logs:   $Root\data\logs\" -ForegroundColor Cyan
 if ($taskOk) { Write-Host "Task:   $TaskName (AtStartup+45s, AtLogOn)" -ForegroundColor Cyan }

@@ -108,7 +108,7 @@ def test_ingest_and_search(tmp_path, monkeypatch):
     hits = search("unicité des noms", version="2.0", k=3, db_path=db)
     assert hits
     assert any("namespace" in h.title.lower() or "unique" in h.excerpt.lower() for h in hits)
-    assert sum(word_count(h.excerpt) for h in hits) <= 800
+    assert sum(word_count(h.excerpt) for h in hits) <= 200
 
     hits2 = search("connector", version="2.0", k=3, db_path=db)
     assert any("connector" in (h.title + h.excerpt).lower() for h in hits2)

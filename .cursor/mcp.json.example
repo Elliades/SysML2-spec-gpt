@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "sysml-spec": {
+      "command": "C:/workspace/sysml-spec-qa/.venv/Scripts/python.exe",
+      "args": ["-m", "sysml_spec_qa.mcp_server"],
+      "env": {
+        "SYSML_SPEC_ROOT": "C:/workspace/sysml-spec-qa",
+        "SYSML_VIEWER_URL": "http://127.0.0.1:8797"
+      }
+    }
+  }
+}

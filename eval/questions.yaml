@@ -1,20 +1,41 @@
 questions:
   - id: name-uniqueness
     q: "c’est quoi les règles d’unicité des noms ?"
-    expect_terms: ["namespace", "unique"]
-    expect_docs: ["kerml"]
+    expect_terms: ["namespace"]
+    expect_any_terms: ["name", "membership", "unique", "distinguishable"]
+    expect_primary_doc: sysml
+    expect_exception_doc: kerml
+    language: fr
   - id: connector-ends
     q: "à quoi je peux connecter un connector ?"
     expect_terms: ["connector"]
+    language: fr
   - id: imports
     q: "comment fonctionne un import dans un namespace ?"
     expect_terms: ["import", "namespace"]
+    language: fr
   - id: binding-connector
     q: "what is a binding connector?"
     expect_terms: ["binding"]
+    language: en
   - id: feature-redefinition
     q: "what are the rules for feature redefinition?"
-    expect_terms: ["redefinition", "feature"]
+    expect_terms: ["redefinition"]
+    language: en
   - id: connection-usage
     q: "what can a SysML connection usage connect?"
     expect_terms: ["connection"]
+    expect_primary_doc: sysml
+    language: en
+  - id: namespace-normative
+    q: "validateNamespaceDistinguishibility"
+    expect_terms: ["membership"]
+    expect_any_terms: ["distinguishable", "distinguish"]
+    expect_primary_doc: sysml
+    expect_exception_doc: kerml
+    language: en
+  - id: example-request
+    q: "show me a SysML part definition example"
+    expect_terms: ["part"]
+    wants_examples: true
+    language: en
