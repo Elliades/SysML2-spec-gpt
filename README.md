@@ -31,24 +31,51 @@ Rebuild the index from already-downloaded files:
 python -m sysml_spec_qa ingest --skip-download
 ```
 
+Ingest also writes searchable markdown under `data/md/` (gitignored, same as the PDFs). Rebuild markdown only:
+
+```powershell
+python -m sysml_spec_qa export-md
+```
+
+Open `data/md/index.md` or a clause file such as `data/md/2.0/kerml-1.0/7-2-5-namespaces.md` and use Cursor search.
+
 ## Run
 
-**Viewer** (bind to localhost only):
+Default viewer port is **8797** (`SYSML_VIEWER_PORT`) — avoids collision with Covas Trade Intel on 8787.
+
+**One-shot viewer**:
 
 ```powershell
 python -m sysml_spec_qa serve
 ```
 
-Opens `http://127.0.0.1:8787`. Example deep link:
+**Worker autostart** (like `quatermaster-backup` — scheduled task + Startup shortcut):
 
-`http://127.0.0.1:8787/v/kerml-1.0/2.0?page=21&clause=7.2.5&q=unique`
+```powershell
+cd C:\workspace\sysml-spec-qa
+.\scripts\install-worker.ps1
+# elevated optional; re-run to update task/shortcut
+.\scripts\uninstall-worker.ps1   # remove
+```
 
-**Cursor MCP** — copy `.cursor/mcp.json` into your Cursor user or project MCP config (paths already point at this workspace). Restart Cursor, start the viewer, then ask:
+Registers **`SysmlSpecQa-Worker`** (AtStartup +45s, AtLogOn). Logs: `data/logs/worker.log`.
+
+Opens `http://127.0.0.1:8797`. Example deep links:
+
+`http://127.0.0.1:8797/r/sysml-2.0-language/2.0/7.5.1?q=connection` (HTML clause reader + highlight)
+
+`http://127.0.0.1:8797/cites?ids=kerml-1.0:2.0:8.3.2.4.5,sysml-2.0-language:2.0:7.5.1&q=connector` (multi-cite session)
+
+Health: `GET http://127.0.0.1:8797/api/health`
+
+Legacy `/v/…`, `/m/…`, `/pack?refs=…` redirect to the new routes.
+
+**Cursor MCP** — copy `.cursor/mcp.json` into your Cursor user or project MCP config (`SYSML_VIEWER_URL` must match the worker port). Restart Cursor, then ask:
 
 - « c’est quoi les règles d’unicité des noms ? »
 - « à quoi je peux connecter un connector ? »
 
-The MCP tools are `spec_route`, `spec_search`, `spec_get`, `spec_element`. They never load the whole spec into context (max ~800 tokens of excerpts).
+The MCP tools are `spec_element`, `spec_answer_pack`, `spec_clause_pack`, `spec_examples`, plus `spec_route`, `spec_search`, `spec_get`. Prefer `spec_answer_pack` for questions: it returns one primary cite (+ optional exception), `session_url`, exact English `quote_en`, and `cost` (tokens, ms, €). Token budget stays around 160 words of source text.
 
 **Eval** (needs a built index):
 
@@ -61,9 +88,11 @@ python -m pytest
 
 - `src/sysml_spec_qa/ingest/` — download, clause-split PDFs, parse XMI, SQLite FTS5
 - `src/sysml_spec_qa/mcp_server.py` — Cursor tools
-- `viewer/static/` — PDF.js viewer + bbox overlay
+- `scripts/worker.ps1` — restart loop for the viewer (used by the scheduled task)
+- `scripts/install-worker.ps1` — register autostart on this PC
+- `viewer/static/` — clause reader UI
 - `eval/questions.yaml` — gold questions
-- `data/` — PDFs + `index/spec.sqlite` (local only)
+- `data/` — PDFs + `index/spec.sqlite` + `md/` clause files (local only)
 
 ## Corpus
 
