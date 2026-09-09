@@ -33,3 +33,18 @@ SYSML_SCORE_THRESHOLD = 4
 EUR_PER_MTOK = float(os.environ.get("SYSML_EUR_PER_MTOK", "2.50"))
 MAX_CLAUSE_WORDS = 800
 MAX_GET_WORDS = 600
+
+
+def resolve_pdf_path(doc_id: str, stored: str | None = None) -> Path | None:
+    """Prefer a live file: stored path first, then data/raw/<doc_id>.pdf."""
+    candidates: list[Path] = []
+    if stored:
+        candidates.append(Path(stored))
+    candidates.append(RAW_DIR / f"{doc_id}.pdf")
+    for path in candidates:
+        try:
+            if path.is_file():
+                return path
+        except OSError:
+            continue
+    return None

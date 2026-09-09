@@ -123,3 +123,49 @@ def test_api_cites(tmp_path, monkeypatch):
     data = pack.json()
     assert data["count"] == 1
     assert data["items"][0]["quote_en"]
+
+
+def test_resolve_pdf_path_falls_back_to_raw(tmp_path, monkeypatch):
+    from sysml_spec_qa.config import resolve_pdf_path
+
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    pdf = raw / "kerml-1.0.pdf"
+    pdf.write_bytes(b"%PDF-1.4 mini\n")
+    monkeypatch.setattr("sysml_spec_qa.config.RAW_DIR", raw)
+    found = resolve_pdf_path("kerml-1.0", r"C:\missing\kerml-1.0.pdf")
+    assert found == pdf
+    assert resolve_pdf_path("missing-doc", r"C:\missing\no.pdf") is None
+
+
+def test_pdf_file_serves_from_raw_fallback(tmp_path, monkeypatch):
+    import sqlite3
+
+    db = _setup_db(tmp_path, monkeypatch)
+    monkeypatch.setattr("sysml_spec_qa.config.RAW_DIR", tmp_path / "raw")
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "UPDATE documents SET pdf_path = ? WHERE id = ?",
+        (r"C:\old-host\kerml-1.0.pdf", "kerml-1.0"),
+    )
+    conn.commit()
+    conn.close()
+    client = TestClient(create_app())
+    resp = client.get("/files/kerml-1.0.pdf")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.content[:5] == b"%PDF-"
+
+
+def test_api_highlights_returns_focus(tmp_path, monkeypatch):
+    _setup_db(tmp_path, monkeypatch)
+    client = TestClient(create_app())
+    resp = client.get(
+        "/api/highlights",
+        params={"doc": "kerml-1.0", "version": "2.0", "clause": "7.2.5", "q": "unique"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["doc"] == "kerml-1.0"
+    assert isinstance(body["bboxes"], list)
+    assert "unique" in body["focus"].lower() or body["focus"]

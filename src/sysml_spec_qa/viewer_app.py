@@ -11,7 +11,17 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import DB_PATH, DEFAULT_VERSION, MD_DIR, ROOT, VIEWER_HOST, VIEWER_PORT, VIEWER_STATIC, VIEWER_URL
+from .config import (
+    DB_PATH,
+    DEFAULT_VERSION,
+    MD_DIR,
+    ROOT,
+    VIEWER_HOST,
+    VIEWER_PORT,
+    VIEWER_STATIC,
+    VIEWER_URL,
+    resolve_pdf_path,
+)
 from .markdown import clause_relpath, render_clause_html, resolve_clause_file
 from .pack import resolve_cites, search_examples
 from .search import get_clause, get_toc, list_documents, search_passages
@@ -253,9 +263,7 @@ def create_app() -> FastAPI:
         pdf_path: Path | None = None
         try:
             docs = {r["id"]: r for r in list_documents()}
-            pdf_raw = docs.get(doc, {}).get("pdf_path")
-            if pdf_raw:
-                pdf_path = Path(pdf_raw)
+            pdf_path = resolve_pdf_path(doc, docs.get(doc, {}).get("pdf_path"))
         except FileNotFoundError:
             pdf_path = None
         focus_quote = quote or ""
@@ -271,13 +279,13 @@ def create_app() -> FastAPI:
             pdf_path=pdf_path,
             page=page,
         )
-        from .highlights import focus_quote
+        from .highlights import focus_quote as extract_focus
 
         return {
             "doc": doc,
             "version": version,
             "bboxes": boxes,
-            "focus": focus_quote(row, quote=focus_quote or "", query=q or ""),
+            "focus": extract_focus(row, quote=focus_quote or "", query=q or ""),
         }
 
     @app.get("/api/md")
@@ -320,11 +328,11 @@ def create_app() -> FastAPI:
         except FileNotFoundError as exc:
             raise HTTPException(404, str(exc)) from exc
         row = docs.get(doc_id)
-        if not row or not row.get("pdf_path"):
+        if not row:
             raise HTTPException(404, f"Unknown document {doc_id}")
-        path = Path(row["pdf_path"])
-        if not path.exists():
-            raise HTTPException(404, f"PDF missing: {path}")
+        path = resolve_pdf_path(doc_id, row.get("pdf_path"))
+        if path is None:
+            raise HTTPException(404, f"PDF missing for {doc_id}")
         return FileResponse(path, media_type="application/pdf", filename=f"{doc_id}.pdf")
 
     @app.get("/api/cites")
