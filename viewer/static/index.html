@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lecteur SysML / KerML</title>
-  <link rel="stylesheet" href="/static/viewer.css?v=7" />
+  <link rel="stylesheet" href="/static/viewer.css?v=8" />
 </head>
 <body id="viewer-app" data-viewer-app="3">
   <header class="topbar" role="banner">
@@ -39,10 +39,7 @@
       </div>
       <nav id="toc-tree" class="toc-tree"></nav>
     </aside>
-    <div id="toc-resizer" class="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner le sommaire" tabindex="0">
-      <button id="toc-collapse" type="button" class="toc-edge-btn" title="Masquer le sommaire" aria-label="Masquer le sommaire" aria-expanded="true">‹</button>
-    </div>
-    <button id="toc-expand" type="button" class="toc-edge-btn toc-edge-expand" title="Afficher le sommaire" aria-label="Afficher le sommaire" hidden>›</button>
+    <div id="toc-resizer" class="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner le sommaire" tabindex="0"></div>
 
     <main id="reader" class="panel reader-panel" role="main">
       <div id="breadcrumb" class="breadcrumb"></div>
@@ -73,6 +70,12 @@
       <div id="search-results" class="search-results" hidden></div>
       <div id="cite-rail" class="cite-rail"></div>
     </aside>
+
+    <button id="toc-toggle" type="button" class="toc-rail-btn" title="Masquer le sommaire" aria-label="Masquer le sommaire" aria-expanded="true">
+      <svg class="toc-rail-icon" width="8" height="12" viewBox="0 0 8 12" aria-hidden="true">
+        <path d="M6 1L1 6l5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
 
   <div id="pdf-overlay" class="pdf-overlay" hidden>
@@ -103,6 +106,6 @@
 
   <div id="toast" class="toast" role="alert" hidden></div>
 
-  <script type="module" src="/static/viewer.js?v=7"></script>
+  <script type="module" src="/static/viewer.js?v=8"></script>
 </body>
 </html>

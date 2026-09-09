@@ -716,12 +716,11 @@ function setTocCollapsed(collapsed) {
   document.body.classList.toggle("toc-collapsed", collapsed);
   localStorage.setItem(TOC_COLLAPSED_KEY, collapsed ? "1" : "0");
 
-  const collapseBtn = $("toc-collapse");
-  const expandBtn = $("toc-expand");
-  collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-  collapseBtn.title = collapsed ? "Afficher le sommaire" : "Masquer le sommaire";
-  collapseBtn.setAttribute("aria-label", collapseBtn.title);
-  expandBtn.hidden = !collapsed;
+  const toggleBtn = $("toc-toggle");
+  toggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  const label = collapsed ? "Afficher le sommaire" : "Masquer le sommaire";
+  toggleBtn.title = label;
+  toggleBtn.setAttribute("aria-label", label);
 }
 
 function initTocPanel() {
@@ -729,8 +728,7 @@ function initTocPanel() {
   if (savedWidth) document.documentElement.style.setProperty("--toc-w", savedWidth);
   setTocCollapsed(localStorage.getItem(TOC_COLLAPSED_KEY) === "1");
 
-  $("toc-collapse").addEventListener("click", () => setTocCollapsed(!state.tocCollapsed));
-  $("toc-expand").addEventListener("click", () => setTocCollapsed(false));
+  $("toc-toggle").addEventListener("click", () => setTocCollapsed(!state.tocCollapsed));
 
   const resizer = $("toc-resizer");
   let startX = 0;
@@ -755,7 +753,6 @@ function initTocPanel() {
   };
 
   resizer.addEventListener("mousedown", (e) => {
-    if (e.target.closest(".toc-edge-btn")) return;
     e.preventDefault();
     startResize(e.clientX);
   });
