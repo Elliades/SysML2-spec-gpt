@@ -68,6 +68,15 @@ Opens `http://127.0.0.1:8797`. Example deep links:
 
 Health: `GET http://127.0.0.1:8797/api/health`
 
+**Apps (homelab, private LAN + Tailscale):** port **3112**, catalog + named URL. Copies the derived index/markdown only — never `data/raw` PDFs.
+
+```powershell
+cd C:\workspace\Apps-server
+./provision/deploy-sysml-spec-qa.ps1
+```
+
+`http://apps:3112/` · `http://sysml.apps.chaos-art.fr/` · `GET /api/health`
+
 Legacy `/v/…`, `/m/…`, `/pack?refs=…` redirect to the new routes.
 
 **Cursor MCP** — une fois le viewer démarré :

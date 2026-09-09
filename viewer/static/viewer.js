@@ -2,6 +2,14 @@
 
 const $ = (id) => document.getElementById(id);
 
+const TOC_WIDTH_KEY = "viewer.tocWidth";
+const TOC_COLLAPSED_KEY = "viewer.tocCollapsed";
+const PDF_TOC_KEY = "viewer.pdfTocOpen";
+const TOC_MIN_W = 160;
+const TOC_MAX_W = 480;
+const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs";
+const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs";
+
 const state = {
   docs: [],
   version: "2.0",
@@ -11,11 +19,16 @@ const state = {
   toc: [],
   tocFlat: [],
   session: [],
+  sessionItems: [],
   sessionIndex: 0,
   searchHits: [],
   mode: "read", // read | cites | search
   pdfDoc: null,
+  pdfDocId: "",
   pdfPage: 1,
+  pdfTocOpen: true,
+  pdfNavLock: false,
+  tocCollapsed: false,
 };
 
 const els = {
@@ -39,10 +52,19 @@ const els = {
   searchResults: $("search-results"),
   pdfOverlay: $("pdf-overlay"),
   pdfCanvas: $("pdf-canvas"),
+  pdfCanvasWrap: $("pdf-canvas-wrap"),
   pdfHl: $("pdf-hl"),
   pdfPageLabel: $("pdf-page-label"),
+  pdfMenuBtn: $("pdf-menu-btn"),
+  pdfTocPanel: $("pdf-toc-panel"),
+  pdfTocTree: $("pdf-toc-tree"),
+  pdfTocFilter: $("pdf-toc-filter"),
   toast: $("toast"),
 };
+
+let pdfjsMod = null;
+let pdfWheelAcc = 0;
+let pdfWheelTimer = 0;
 
 function showStatus(msg, isError = false) {
   if (!msg) {
@@ -171,8 +193,16 @@ function sessionClauseSet() {
   }));
 }
 
-function renderToc() {
-  const filter = (els.tocFilter.value || "").toLowerCase();
+function scrollTocToActive(tree) {
+  requestAnimationFrame(() => {
+    const active = tree.querySelector(".toc-item.active");
+    if (!active) return;
+    active.scrollIntoView({ block: "center", behavior: "instant" });
+  });
+}
+
+function fillTocTree(tree, filterValue, { onPick, scrollToActive = false } = {}) {
+  const filter = (filterValue || "").toLowerCase();
   const inSession = sessionClauseSet();
   const frag = document.createDocumentFragment();
   for (const item of state.toc) {
@@ -185,10 +215,29 @@ function renderToc() {
     if (item.clause_id === state.clauseId) btn.classList.add("active");
     if (inSession.has(item.clause_id)) btn.classList.add("in-session");
     btn.innerHTML = `<span class="cid">${item.clause_id}</span>${escapeHtml(item.title || "")}`;
-    btn.addEventListener("click", () => openClause(item.clause_id, { push: true }));
+    btn.addEventListener("click", () => onPick(item));
     frag.appendChild(btn);
   }
-  els.tocTree.replaceChildren(frag);
+  tree.replaceChildren(frag);
+  if (scrollToActive) scrollTocToActive(tree);
+}
+
+function renderToc({ scrollToActive = false } = {}) {
+  fillTocTree(els.tocTree, els.tocFilter.value, {
+    onPick: (item) => openClause(item.clause_id, { push: true }),
+    scrollToActive,
+  });
+  if (els.pdfTocTree && els.pdfOverlay && !els.pdfOverlay.hidden) {
+    renderPdfToc({ scrollToActive });
+  }
+}
+
+function renderPdfToc({ scrollToActive = false } = {}) {
+  if (!els.pdfTocTree) return;
+  fillTocTree(els.pdfTocTree, els.pdfTocFilter?.value || "", {
+    onPick: (item) => openPdfClause(item),
+    scrollToActive,
+  });
 }
 
 function renderBreadcrumb() {
@@ -236,13 +285,19 @@ async function openClause(clauseId, { push = false, addToSession = false } = {})
   setReaderState("loading");
   showStatus("");
   try {
-    const data = await api(
-      `/api/clause_html?doc=${encodeURIComponent(state.docId)}&version=${encodeURIComponent(state.version)}&clause=${encodeURIComponent(clauseId)}&q=${encodeURIComponent(state.query)}`
-    );
+    const params = new URLSearchParams({
+      doc: state.docId,
+      version: state.version,
+      clause: clauseId,
+    });
+    if (state.mode === "search" && state.query) {
+      params.set("highlight", state.query);
+    }
+    const data = await api(`/api/clause_html?${params}`);
     els.clauseBody.innerHTML = data.html;
     renderReaderMeta(data);
     renderBreadcrumb();
-    renderToc();
+    renderToc({ scrollToActive: true });
     setReaderState("content");
     els.routeBadge.hidden = false;
     els.routeBadge.textContent = state.mode === "cites" ? "Session" : "Lecture";
@@ -367,6 +422,7 @@ async function loadSessionFromApi() {
       `/api/cites?refs=${encodeURIComponent(state.session.join(","))}&q=${encodeURIComponent(state.query)}`
     );
     const items = data.items || [];
+    state.sessionItems = items;
     if (items.length) {
       const idx = Math.min(state.sessionIndex, items.length - 1);
       const item = items[idx];
@@ -422,23 +478,136 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function activeCiteQuote() {
+  if (state.sessionItems.length) {
+    const item = state.sessionItems[state.sessionIndex];
+    if (item?.quote_en) return item.quote_en;
+  }
+  if (state.mode === "search" && state.searchHits.length) {
+    const hit = state.searchHits.find(
+      (h) => h.doc_id === state.docId && h.clause_id === state.clauseId
+    );
+    if (hit?.quote_en) return hit.quote_en;
+  }
+  return "";
+}
+
+async function loadPdfjs() {
+  if (!pdfjsMod) {
+    pdfjsMod = await import(PDFJS_URL);
+    pdfjsMod.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  }
+  return pdfjsMod;
+}
+
+async function ensurePdfDoc() {
+  const pdfjs = await loadPdfjs();
+  if (!state.pdfDoc || state.pdfDocId !== state.docId) {
+    if (state.pdfDoc) {
+      try { state.pdfDoc.destroy(); } catch { /* ignore */ }
+    }
+    state.pdfDoc = await pdfjs.getDocument(`/files/${state.docId}.pdf`).promise;
+    state.pdfDocId = state.docId;
+  }
+  return pdfjs;
+}
+
+function setPdfTocOpen(open) {
+  state.pdfTocOpen = open;
+  if (els.pdfOverlay) els.pdfOverlay.classList.toggle("pdf-toc-collapsed", !open);
+  if (els.pdfMenuBtn) {
+    els.pdfMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    els.pdfMenuBtn.textContent = open ? "Masquer sommaire" : "Sommaire";
+  }
+  localStorage.setItem(PDF_TOC_KEY, open ? "1" : "0");
+}
+
+function isPdfOpen() {
+  return Boolean(els.pdfOverlay && !els.pdfOverlay.hidden);
+}
+
 async function openPdf() {
   if (!state.docId || !state.clauseId) return;
   els.pdfOverlay.hidden = false;
+  setPdfTocOpen(localStorage.getItem(PDF_TOC_KEY) !== "0");
   try {
-    const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs");
-    pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs";
-    if (!state.pdfDoc) {
-      state.pdfDoc = await pdfjs.getDocument(`/files/${state.docId}.pdf`).promise;
+    if (!state.toc.length) await loadToc();
+    renderPdfToc({ scrollToActive: true });
+    const pdfjs = await ensurePdfDoc();
+    const fromToc = state.toc.find((t) => t.clause_id === state.clauseId);
+    state.pdfPage = fromToc?.page_start || state.pdfPage || 1;
+    try {
+      const row = await api(
+        `/api/clause?clause=${encodeURIComponent(state.clauseId)}&doc=${encodeURIComponent(state.docId)}&version=${encodeURIComponent(state.version)}`
+      );
+      state.pdfPage = row.page_start || state.pdfPage;
+    } catch {
+      /* keep TOC page if clause metadata is unavailable */
     }
-    const row = await api(
-      `/api/clause?clause=${encodeURIComponent(state.clauseId)}&doc=${encodeURIComponent(state.docId)}&version=${encodeURIComponent(state.version)}`
-    );
-    state.pdfPage = row.page_start || 1;
     await renderPdfPage(pdfjs);
+    if (els.pdfCanvasWrap) els.pdfCanvasWrap.scrollTop = 0;
   } catch (err) {
     toast("PDF indisponible: " + err.message);
     els.pdfOverlay.hidden = true;
+  }
+}
+
+async function openPdfClause(item) {
+  const clauseId = item.clause_id;
+  state.clauseId = clauseId;
+  state.pdfPage = item.page_start || 1;
+  if (!item.page_start) {
+    try {
+      const row = await api(
+        `/api/clause?clause=${encodeURIComponent(clauseId)}&doc=${encodeURIComponent(state.docId)}&version=${encodeURIComponent(state.version)}`
+      );
+      state.pdfPage = row.page_start || 1;
+    } catch { /* keep current page */ }
+  }
+  const pdfjs = await ensurePdfDoc();
+  await renderPdfPage(pdfjs);
+  if (els.pdfCanvasWrap) els.pdfCanvasWrap.scrollTop = 0;
+  renderPdfToc({ scrollToActive: true });
+  openClause(clauseId, { push: true });
+}
+
+async function stepPdfPage(delta) {
+  if (!state.pdfDoc || state.pdfNavLock || !isPdfOpen()) return;
+  const next = state.pdfPage + delta;
+  if (next < 1 || next > state.pdfDoc.numPages) return;
+  state.pdfNavLock = true;
+  state.pdfPage = next;
+  try {
+    const pdfjs = await loadPdfjs();
+    await renderPdfPage(pdfjs);
+    if (els.pdfCanvasWrap) {
+      els.pdfCanvasWrap.scrollTop = delta > 0 ? 0 : els.pdfCanvasWrap.scrollHeight;
+    }
+  } finally {
+    state.pdfNavLock = false;
+  }
+}
+
+function onPdfWheel(e) {
+  if (!isPdfOpen()) return;
+  const wrap = els.pdfCanvasWrap;
+  if (!wrap) return;
+  const atTop = wrap.scrollTop <= 2;
+  const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 2;
+  const down = e.deltaY > 0;
+  const up = e.deltaY < 0;
+  if ((down && atBottom) || (up && atTop)) {
+    e.preventDefault();
+    pdfWheelAcc += e.deltaY;
+    clearTimeout(pdfWheelTimer);
+    if (Math.abs(pdfWheelAcc) >= 48) {
+      stepPdfPage(pdfWheelAcc > 0 ? 1 : -1);
+      pdfWheelAcc = 0;
+    } else {
+      pdfWheelTimer = setTimeout(() => { pdfWheelAcc = 0; }, 280);
+    }
+  } else {
+    pdfWheelAcc = 0;
   }
 }
 
@@ -451,23 +620,37 @@ async function renderPdfPage(pdfjs) {
   canvas.height = viewport.height;
   await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
   els.pdfPageLabel.textContent = `Page ${state.pdfPage} / ${state.pdfDoc.numPages}`;
-  const hl = await api(
-    `/api/highlights?doc=${encodeURIComponent(state.docId)}&version=${encodeURIComponent(state.version)}&clause=${encodeURIComponent(state.clauseId)}&page=${state.pdfPage}`
-  );
+  const hlParams = new URLSearchParams({
+    doc: state.docId,
+    version: state.version,
+    clause: state.clauseId,
+    page: String(state.pdfPage),
+  });
+  const citeQuote = activeCiteQuote();
+  if (citeQuote) hlParams.set("quote", citeQuote);
+  else if (state.mode === "search" && state.query) hlParams.set("q", state.query);
   els.pdfHl.innerHTML = "";
   els.pdfHl.style.width = viewport.width + "px";
   els.pdfHl.style.height = viewport.height + "px";
-  for (const box of hl.bboxes || []) {
-    if (box.page !== state.pdfPage) continue;
-    const div = document.createElement("div");
-    div.className = "hl";
-    const x0 = box.x0 * scale;
-    const y0 = viewport.height - box.y1 * scale;
-    div.style.left = x0 + "px";
-    div.style.top = y0 + "px";
-    div.style.width = (box.x1 - box.x0) * scale + "px";
-    div.style.height = (box.y1 - box.y0) * scale + "px";
-    els.pdfHl.appendChild(div);
+  try {
+    const hl = await api(`/api/highlights?${hlParams}`);
+    if (hl.focus) {
+      els.pdfPageLabel.textContent = `Page ${state.pdfPage} / ${state.pdfDoc.numPages} · citation`;
+    }
+    for (const box of hl.bboxes || []) {
+      if (box.page !== state.pdfPage) continue;
+      const div = document.createElement("div");
+      div.className = "hl cite-focus";
+      const x0 = box.x0 * scale;
+      const y0 = viewport.height - box.y1 * scale;
+      div.style.left = x0 + "px";
+      div.style.top = y0 + "px";
+      div.style.width = (box.x1 - box.x0) * scale + "px";
+      div.style.height = (box.y1 - box.y0) * scale + "px";
+      els.pdfHl.appendChild(div);
+    }
+  } catch {
+    /* page still readable without highlights */
   }
 }
 
@@ -516,23 +699,111 @@ els.doc.addEventListener("change", async () => {
   await loadToc();
 });
 
+function readTocWidth() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--toc-w").trim();
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : 280;
+}
+
+function setTocWidth(px) {
+  const w = Math.min(TOC_MAX_W, Math.max(TOC_MIN_W, px));
+  document.documentElement.style.setProperty("--toc-w", `${w}px`);
+  localStorage.setItem(TOC_WIDTH_KEY, `${w}px`);
+}
+
+function setTocCollapsed(collapsed) {
+  state.tocCollapsed = collapsed;
+  document.body.classList.toggle("toc-collapsed", collapsed);
+  localStorage.setItem(TOC_COLLAPSED_KEY, collapsed ? "1" : "0");
+
+  const collapseBtn = $("toc-collapse");
+  const expandBtn = $("toc-expand");
+  collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  collapseBtn.title = collapsed ? "Afficher le sommaire" : "Masquer le sommaire";
+  collapseBtn.setAttribute("aria-label", collapseBtn.title);
+  expandBtn.hidden = !collapsed;
+}
+
+function initTocPanel() {
+  const savedWidth = localStorage.getItem(TOC_WIDTH_KEY);
+  if (savedWidth) document.documentElement.style.setProperty("--toc-w", savedWidth);
+  setTocCollapsed(localStorage.getItem(TOC_COLLAPSED_KEY) === "1");
+
+  $("toc-collapse").addEventListener("click", () => setTocCollapsed(!state.tocCollapsed));
+  $("toc-expand").addEventListener("click", () => setTocCollapsed(false));
+
+  const resizer = $("toc-resizer");
+  let startX = 0;
+  let startW = 0;
+
+  const stopResize = () => {
+    document.body.classList.remove("toc-resizing");
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", stopResize);
+    localStorage.setItem(TOC_WIDTH_KEY, `${readTocWidth()}px`);
+  };
+
+  const onMove = (e) => setTocWidth(startW + e.clientX - startX);
+
+  const startResize = (clientX) => {
+    if (state.tocCollapsed) return;
+    startX = clientX;
+    startW = readTocWidth();
+    document.body.classList.add("toc-resizing");
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", stopResize);
+  };
+
+  resizer.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".toc-edge-btn")) return;
+    e.preventDefault();
+    startResize(e.clientX);
+  });
+
+  resizer.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); setTocWidth(readTocWidth() - 16); }
+    if (e.key === "ArrowRight") { e.preventDefault(); setTocWidth(readTocWidth() + 16); }
+    if (e.key === "Home") { e.preventDefault(); setTocWidth(TOC_MIN_W); }
+    if (e.key === "End") { e.preventDefault(); setTocWidth(TOC_MAX_W); }
+  });
+}
+
 els.tocFilter.addEventListener("input", renderToc);
 $("prev-clause").addEventListener("click", () => navigateClause(-1));
 $("next-clause").addEventListener("click", () => navigateClause(1));
 $("reader-retry").addEventListener("click", () => openClause(state.clauseId));
 $("pdf-btn").addEventListener("click", openPdf);
 $("pdf-close").addEventListener("click", hidePdfOverlay);
-$("pdf-prev").addEventListener("click", async () => {
-  if (state.pdfPage > 1) { state.pdfPage--; const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs"); await renderPdfPage(pdfjs); }
-});
-$("pdf-next").addEventListener("click", async () => {
-  if (state.pdfDoc && state.pdfPage < state.pdfDoc.numPages) { state.pdfPage++; const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs"); await renderPdfPage(pdfjs); }
-});
+$("pdf-menu-btn").addEventListener("click", () => setPdfTocOpen(!state.pdfTocOpen));
+$("pdf-toc-close").addEventListener("click", () => setPdfTocOpen(false));
+if (els.pdfTocFilter) els.pdfTocFilter.addEventListener("input", () => renderPdfToc());
+$("pdf-prev").addEventListener("click", () => stepPdfPage(-1));
+$("pdf-next").addEventListener("click", () => stepPdfPage(1));
+if (els.pdfCanvasWrap) {
+  els.pdfCanvasWrap.addEventListener("wheel", onPdfWheel, { passive: false });
+}
 
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select")) {
     if (e.key === "Escape") e.target.blur();
     return;
+  }
+  if (isPdfOpen()) {
+    if (e.key === "Escape") {
+      if (state.pdfTocOpen) setPdfTocOpen(false);
+      else hidePdfOverlay();
+      return;
+    }
+    if (e.key === "PageDown" || e.key === "ArrowRight") {
+      e.preventDefault();
+      stepPdfPage(1);
+      return;
+    }
+    if (e.key === "PageUp" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      stepPdfPage(-1);
+      return;
+    }
   }
   if (e.key === "/") { e.preventDefault(); els.query.focus(); }
   if (e.key === "j" && state.mode === "cites" && state.session.length) navigateCite(1);
@@ -547,4 +818,5 @@ window.addEventListener("popstate", () => {
   boot();
 });
 
+initTocPanel();
 boot();

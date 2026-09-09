@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+import time
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -9,12 +11,13 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import DB_PATH, DEFAULT_VERSION, MD_DIR, ROOT, VIEWER_HOST, VIEWER_PORT, VIEWER_STATIC
+from .config import DB_PATH, DEFAULT_VERSION, MD_DIR, ROOT, VIEWER_HOST, VIEWER_PORT, VIEWER_STATIC, VIEWER_URL
 from .markdown import clause_relpath, render_clause_html, resolve_clause_file
 from .pack import resolve_cites, search_examples
 from .search import get_clause, get_toc, list_documents, search_passages
 
 INDEX_HTML = VIEWER_STATIC / "index.html"
+_STARTED = time.monotonic()
 
 
 def create_app() -> FastAPI:
@@ -76,43 +79,63 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     @app.get("/health")
     def api_health() -> JSONResponse:
+        frontend_ok = INDEX_HTML.exists()
         checks: dict[str, dict] = {
-            "viewer": {"status": "ok", "host": VIEWER_HOST, "port": VIEWER_PORT},
-            "static": {
-                "status": "ok" if INDEX_HTML.exists() else "down",
+            "frontend": {
+                "status": "ok" if frontend_ok else "down",
                 "detail": str(INDEX_HTML),
             },
+            "backend": {"status": "ok", "host": VIEWER_HOST, "port": VIEWER_PORT},
         }
         docs: list[dict] = []
-        index_status = "down"
+        db_started = time.perf_counter()
         try:
             docs = list_documents()
-            index_status = "ok" if docs else "degraded"
-            checks["index"] = {
-                "status": index_status,
+            db_ok = bool(docs)
+            checks["database"] = {
+                "status": "ok" if db_ok else "down",
+                "latencyMs": round((time.perf_counter() - db_started) * 1000, 1),
                 "documents": len(docs),
                 "path": str(DB_PATH),
             }
-        except FileNotFoundError as exc:
-            checks["index"] = {"status": "down", "detail": str(exc), "path": str(DB_PATH)}
+        except (FileNotFoundError, sqlite3.Error, OSError) as exc:
+            checks["database"] = {
+                "status": "down",
+                "latencyMs": round((time.perf_counter() - db_started) * 1000, 1),
+                "detail": str(exc),
+                "path": str(DB_PATH),
+            }
 
-        md_status = "ok" if MD_DIR.exists() else "degraded"
-        checks["markdown"] = {"status": md_status, "path": str(MD_DIR)}
+        md_ok = MD_DIR.exists()
+        checks["markdown"] = {
+            "status": "ok" if md_ok else "down",
+            "path": str(MD_DIR),
+        }
 
-        required = ["viewer", "static", "index"]
-        down = [name for name in required if checks.get(name, {}).get("status") == "down"]
-        status = "ok"
-        if down:
+        core_down = [
+            name
+            for name in ("frontend", "backend")
+            if checks.get(name, {}).get("status") == "down"
+        ]
+        dep_down = [
+            name
+            for name in ("database", "markdown")
+            if checks.get(name, {}).get("status") == "down"
+        ]
+        if core_down:
+            status = "down"
+        elif dep_down:
             status = "degraded"
-        elif any(checks[name].get("status") == "degraded" for name in checks):
-            status = "degraded"
+        else:
+            status = "ok"
 
         body = {
             "status": status,
             "service": "sysml-spec-qa",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+            "uptime": round(time.monotonic() - _STARTED, 1),
             "root": str(ROOT),
-            "viewer_url": f"http://{VIEWER_HOST}:{VIEWER_PORT}",
+            "viewer_url": VIEWER_URL,
             "checks": checks,
             "documents": docs,
         }
@@ -143,6 +166,7 @@ def create_app() -> FastAPI:
         clause: str,
         version: str = DEFAULT_VERSION,
         q: str = "",
+        highlight: str = "",
     ) -> dict:
         row = get_clause(clause, doc_id=doc, version=version)
         if not row:
@@ -152,16 +176,20 @@ def create_app() -> FastAPI:
             markdown = path.read_text(encoding="utf-8")
         else:
             markdown = f"# {row['title']}\n\n{row['text']}"
-        from .markdown import strip_frontmatter
+        from .markdown import prepare_clause_markdown
         from .textutil import word_count
 
-        if word_count(strip_frontmatter(markdown)) < word_count(row["text"]) // 2:
-            markdown = f"# {row['title']}\n\n{row['text']}"
+        db_body = row.get("full_text") or row["text"]
+        substantive = prepare_clause_markdown(markdown)
+        if word_count(substantive) < max(8, word_count(db_body) // 3):
+            markdown = f"# {row['title']}\n\n{db_body}"
         html_body = render_clause_html(
             markdown,
-            query=q,
+            query=highlight or "",
             title=row["title"],
             clause_id=clause,
+            doc_id=doc,
+            version=version,
         )
         return {
             "doc_id": doc,
@@ -214,29 +242,43 @@ def create_app() -> FastAPI:
         version: str = DEFAULT_VERSION,
         clause: str | None = None,
         q: str | None = Query(default=None),
+        quote: str | None = Query(default=None),
         page: int | None = None,
     ) -> dict:
-        bboxes: list[dict] = []
-        if clause:
-            row = get_clause(clause, doc_id=doc, version=version)
-            if row:
-                bboxes.extend(row.get("bboxes") or [])
-        if q:
-            for hit in search_passages(q, version=version, k=5):
-                if hit.doc_id != doc:
-                    continue
-                bboxes.extend(hit.bboxes)
-        if page is not None:
-            bboxes = [b for b in bboxes if int(b.get("page", 0)) == page]
-        uniq = []
-        seen = set()
-        for box in bboxes:
-            key = (box.get("page"), box.get("x0"), box.get("y0"), box.get("x1"), box.get("y1"))
-            if key in seen:
-                continue
-            seen.add(key)
-            uniq.append(box)
-        return {"doc": doc, "version": version, "bboxes": uniq[:40]}
+        from .highlights import focused_highlights
+
+        row = get_clause(clause, doc_id=doc, version=version) if clause else None
+        if not row:
+            return {"doc": doc, "version": version, "bboxes": [], "focus": ""}
+        pdf_path: Path | None = None
+        try:
+            docs = {r["id"]: r for r in list_documents()}
+            pdf_raw = docs.get(doc, {}).get("pdf_path")
+            if pdf_raw:
+                pdf_path = Path(pdf_raw)
+        except FileNotFoundError:
+            pdf_path = None
+        focus_quote = quote or ""
+        if not focus_quote and q:
+            for hit in search_passages(q, version=version, k=3):
+                if hit.doc_id == doc and hit.clause_id == clause:
+                    focus_quote = hit.quote_en
+                    break
+        boxes = focused_highlights(
+            row,
+            quote=focus_quote or "",
+            query=q or "",
+            pdf_path=pdf_path,
+            page=page,
+        )
+        from .highlights import focus_quote
+
+        return {
+            "doc": doc,
+            "version": version,
+            "bboxes": boxes,
+            "focus": focus_quote(row, quote=focus_quote or "", query=q or ""),
+        }
 
     @app.get("/api/md")
     def api_md(
@@ -336,7 +378,7 @@ def create_app() -> FastAPI:
 def main() -> None:
     import uvicorn
 
-    print(f"SysML viewer on http://{VIEWER_HOST}:{VIEWER_PORT} (localhost only)")
+    print(f"SysML viewer on {VIEWER_URL} (bind {VIEWER_HOST}:{VIEWER_PORT})")
     uvicorn.run(
         create_app(),
         host=VIEWER_HOST,

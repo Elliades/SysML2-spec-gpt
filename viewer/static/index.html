@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lecteur SysML / KerML</title>
-  <link rel="stylesheet" href="/static/viewer.css" />
+  <link rel="stylesheet" href="/static/viewer.css?v=7" />
 </head>
 <body id="viewer-app" data-viewer-app="3">
   <header class="topbar" role="banner">
@@ -39,6 +39,10 @@
       </div>
       <nav id="toc-tree" class="toc-tree"></nav>
     </aside>
+    <div id="toc-resizer" class="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionner le sommaire" tabindex="0">
+      <button id="toc-collapse" type="button" class="toc-edge-btn" title="Masquer le sommaire" aria-label="Masquer le sommaire" aria-expanded="true">‹</button>
+    </div>
+    <button id="toc-expand" type="button" class="toc-edge-btn toc-edge-expand" title="Afficher le sommaire" aria-label="Afficher le sommaire" hidden>›</button>
 
     <main id="reader" class="panel reader-panel" role="main">
       <div id="breadcrumb" class="breadcrumb"></div>
@@ -73,19 +77,32 @@
 
   <div id="pdf-overlay" class="pdf-overlay" hidden>
     <div class="pdf-toolbar">
+      <button id="pdf-menu-btn" type="button" class="btn" aria-controls="pdf-toc-panel" aria-expanded="true">Sommaire</button>
       <button id="pdf-close" type="button" class="btn">Fermer</button>
-      <button id="pdf-prev" type="button" class="btn">‹</button>
+      <button id="pdf-prev" type="button" class="btn" title="Page précédente">‹</button>
       <span id="pdf-page-label">—</span>
-      <button id="pdf-next" type="button" class="btn">›</button>
+      <button id="pdf-next" type="button" class="btn" title="Page suivante">›</button>
     </div>
-    <div class="pdf-canvas-wrap">
-      <canvas id="pdf-canvas"></canvas>
-      <div id="pdf-hl" class="pdf-hl"></div>
+    <div class="pdf-body">
+      <aside id="pdf-toc-panel" class="panel pdf-toc-panel" aria-label="Sommaire PDF">
+        <div class="panel-head">
+          <h2>Sommaire</h2>
+          <button id="pdf-toc-close" type="button" class="btn ghost" title="Fermer le sommaire">✕</button>
+        </div>
+        <input id="pdf-toc-filter" type="search" placeholder="Filtrer…" autocomplete="off" />
+        <nav id="pdf-toc-tree" class="toc-tree"></nav>
+      </aside>
+      <div id="pdf-canvas-wrap" class="pdf-canvas-wrap">
+        <div class="pdf-page">
+          <canvas id="pdf-canvas"></canvas>
+          <div id="pdf-hl" class="pdf-hl"></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <div id="toast" class="toast" role="alert" hidden></div>
 
-  <script type="module" src="/static/viewer.js"></script>
+  <script type="module" src="/static/viewer.js?v=7"></script>
 </body>
 </html>

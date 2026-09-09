@@ -1,0 +1,21 @@
+# Private homelab viewer (LAN + Tailscale). Do not publish on the public internet:
+# OMG license forbids republishing the specifications on a network.
+# Mount only the derived index + markdown — never data/raw PDFs.
+services:
+  sysml-spec-qa:
+    build: .
+    image: sysml-spec-qa:latest
+    container_name: sysml-spec-qa
+    restart: unless-stopped
+    ports:
+      - "3112:3112"
+    environment:
+      SYSML_SPEC_ROOT: /app
+      SYSML_SPEC_DATA: /data
+      SYSML_VIEWER_HOST: "0.0.0.0"
+      SYSML_VIEWER_PORT: "3112"
+      SYSML_VIEWER_URL: ${SYSML_VIEWER_URL:-http://sysml.apps.chaos-art.fr}
+      SYSML_SPEC_VERSION: ${SYSML_SPEC_VERSION:-2.0}
+    volumes:
+      - ./data/index:/data/index
+      - ./data/md:/data/md:ro

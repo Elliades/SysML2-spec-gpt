@@ -39,3 +39,21 @@ def test_render_clause_html_has_paragraphs_and_pre():
     assert "<p>" in html
     assert "<pre>" in html
     assert "Systems Modeling Language" not in html
+
+
+def test_highlight_skips_code_blocks():
+    html = render_clause_html(SAMPLE, query="flow", clause_id="7.16.2")
+    assert html.count("<mark") <= 16
+    assert "<pre><code" in html
+    pre = html.split("<pre>")[1].split("</pre>")[0]
+    assert "<mark" not in pre
+
+
+def test_linkify_clause_refs():
+    html = render_clause_html(
+        "See (see 7.13.2 ) and [KerML, 7.4.10] for details.",
+        doc_id="sysml-2.0-language",
+        version="2.0",
+    )
+    assert 'class="clause-ref"' in html
+    assert "7.13.2" in html

@@ -48,6 +48,8 @@ APP_SHELL_MARKERS = (
     'lang="fr"',
     'id="toc-panel"',
     'id="cite-panel"',
+    'id="pdf-toc-panel"',
+    'id="pdf-menu-btn"',
     "Lecteur spec",
 )
 
@@ -86,7 +88,11 @@ def test_api_health(tmp_path, monkeypatch):
     body = resp.json()
     assert body["service"] == "sysml-spec-qa"
     assert body["status"] == "ok"
-    assert body["checks"]["index"]["documents"] >= 1
+    assert body["uptime"] >= 0
+    assert body["checks"]["frontend"]["status"] == "ok"
+    assert body["checks"]["backend"]["status"] == "ok"
+    assert body["checks"]["database"]["status"] == "ok"
+    assert body["checks"]["database"]["documents"] >= 1
 
 
 def test_api_toc_and_clause_html(tmp_path, monkeypatch):
@@ -103,7 +109,7 @@ def test_api_toc_and_clause_html(tmp_path, monkeypatch):
     assert html.status_code == 200
     body = html.json()["html"]
     assert 'id="clause-7.2.5"' in body
-    assert "<mark>" in body or "Namespaces" in body
+    assert "unique" in body.lower() or "<mark>" in body
 
 
 def test_api_cites(tmp_path, monkeypatch):

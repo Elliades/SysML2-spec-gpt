@@ -37,6 +37,12 @@ CODE_BLOCK_INNER = re.compile(
 )
 PROSE_WRAP_CONT = re.compile(r"[^.!?;:}\]]\s*$")
 PROSE_WRAP_NEXT = re.compile(r"^[a-z(]")
+PROSE_WRAP_SOFT = re.compile(r"\b(or|and|,|\()\s*$", re.I)
+PROSE_SPLIT = re.compile(
+    r"(?<=\.)\s+(?=A |An |The |Similar |For a |In this |If (?:a |they |no ))"
+)
+CLAUSE_SEE_RE = re.compile(r"\(see (?:\[KerML,\s*)?(\d+(?:\.\d+)*)\s*\)", re.I)
+KERML_REF_RE = re.compile(r"\[KerML,\s*(\d+(?:\.\d+)*)\]")
 
 
 def strip_frontmatter(text: str) -> str:
@@ -75,11 +81,56 @@ def _reflow_wrapped_lines(lines: list[str]) -> list[str]:
             continue
         if PROSE_WRAP_CONT.search(buf) and PROSE_WRAP_NEXT.match(line):
             buf = f"{buf} {line}"
+        elif PROSE_WRAP_SOFT.search(buf) and (
+            PROSE_WRAP_NEXT.match(line) or re.match(r"^[A-Z\[]", line)
+        ):
+            buf = f"{buf} {line}"
         else:
             out.append(buf)
             buf = line
     if buf:
         out.append(buf)
+    return out
+
+
+def _pretty_sysml_code(lines: list[str]) -> list[str]:
+    """Expand one-line PDF extracts into readable multi-line SysML blocks."""
+    out: list[str] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        chunks = re.sub(r"\{\s*", "{\n", line)
+        chunks = re.sub(r"\s*\}", "\n}", chunks)
+        chunks = re.sub(r";\s*", ";\n", chunks)
+        for piece in chunks.split("\n"):
+            piece = piece.strip()
+            if not piece:
+                continue
+            if piece.startswith(("end ", "//", "succession ", "message ", "flow ", "abstract ")):
+                out.append(piece)
+            elif piece == "}":
+                out.append(piece)
+            elif piece.endswith("{"):
+                out.append(piece)
+            else:
+                out.append(piece)
+    return out
+
+
+def _split_prose_paragraphs(lines: list[str]) -> list[str]:
+    out: list[str] = []
+    for line in lines:
+        if not line.strip() or line.startswith("```") or line.startswith("- "):
+            out.append(line)
+            continue
+        parts = PROSE_SPLIT.split(line.strip())
+        for idx, part in enumerate(parts):
+            part = part.strip()
+            if part:
+                out.append(part)
+            if idx < len(parts) - 1:
+                out.append("")
     return out
 
 
@@ -95,7 +146,7 @@ def _fence_code_blocks(lines: list[str]) -> list[str]:
         if out and out[-1] != "":
             out.append("")
         out.append("```sysml")
-        out.extend(code_buf)
+        out.extend(_pretty_sysml_code(code_buf))
         out.append("```")
         out.append("")
         code_buf = []
@@ -138,7 +189,8 @@ def format_clause_body(text: str) -> str:
             continue
         cleaned.append(line.rstrip())
     reflowed = _reflow_wrapped_lines(cleaned)
-    fenced = _fence_code_blocks(reflowed)
+    split = _split_prose_paragraphs(reflowed)
+    fenced = _fence_code_blocks(split)
     paragraphs: list[str] = []
     buf: list[str] = []
     for line in fenced:
@@ -159,31 +211,76 @@ def format_clause_body(text: str) -> str:
     return "\n\n".join(paragraphs)
 
 
-def highlight_html(body_html: str, query: str) -> str:
-    if not query or not query.strip():
-        return body_html
-    terms = [t for t in re.split(r"\s+", query.strip()) if len(t) >= 3]
-    if not terms:
-        return body_html
-    out = body_html
-    for term in terms[:6]:
-        pattern = re.compile(re.escape(term), re.IGNORECASE)
+def _highlight_chunk(chunk: str, terms: list[str], budget: list[int]) -> str:
+    if budget[0] <= 0:
+        return chunk
+    out = chunk
+    for term in terms:
+        if budget[0] <= 0:
+            break
+        if len(term) < 4:
+            continue
+        pattern = re.compile(rf"\b({re.escape(term)})\b", re.IGNORECASE)
 
         def repl(m: re.Match[str]) -> str:
-            return f"<mark>{m.group(0)}</mark>"
+            if budget[0] <= 0:
+                return m.group(0)
+            budget[0] -= 1
+            return f'<mark class="hl-term">{m.group(1)}</mark>'
 
         out = pattern.sub(repl, out)
     return out
 
 
-def render_clause_html(
-    text: str,
-    query: str = "",
-    title: str = "",
-    clause_id: str = "",
+def highlight_html(body_html: str, query: str) -> str:
+    """Highlight whole-word search terms in prose only (never inside code blocks)."""
+    if not query or not query.strip():
+        return body_html
+    terms = sorted(
+        {t for t in re.split(r"\s+", query.strip()) if len(t) >= 4},
+        key=len,
+        reverse=True,
+    )
+    if not terms:
+        return body_html
+    budget = [16]
+    parts = re.split(r"(<pre[\s\S]*?</pre>)", body_html, flags=re.I)
+    out: list[str] = []
+    for part in parts:
+        if part.lower().startswith("<pre"):
+            out.append(part)
+        else:
+            out.append(_highlight_chunk(part, terms, budget))
+    return "".join(out)
+
+
+def linkify_clause_refs(
+    body_html: str,
+    doc_id: str,
+    version: str,
 ) -> str:
+    """Turn (see 7.13.2) and [KerML, 7.4.10] into reader links."""
+
+    def _link(doc: str, clause: str, label: str) -> str:
+        href = reader_link(doc, version, clause)
+        return f'<a class="clause-ref" href="{html.escape(href)}">{html.escape(label)}</a>'
+
+    def see_repl(m: re.Match[str]) -> str:
+        cid = m.group(1)
+        return f"(see {_link(doc_id, cid, cid)})"
+
+    def kerml_repl(m: re.Match[str]) -> str:
+        cid = m.group(1)
+        kdoc = "kerml-1.0" if version == "2.0" else doc_id
+        return f"[KerML, {_link(kdoc, cid, cid)}]"
+
+    out = CLAUSE_SEE_RE.sub(see_repl, body_html)
+    return KERML_REF_RE.sub(kerml_repl, out)
+
+
+def prepare_clause_markdown(text: str) -> str:
+    """Drop exported markdown chrome; return spec body ready for HTML formatting."""
     body = strip_frontmatter(text)
-    # Skip duplicate nav/header lines already shown in reader chrome.
     body_lines = body.splitlines()
     removed_md_title = False
     while body_lines:
@@ -202,11 +299,24 @@ def render_clause_html(
             body_lines.pop(0)
             continue
         break
-    body = format_clause_body("\n".join(body_lines).strip())
+    return format_clause_body("\n".join(body_lines).strip())
+
+
+def render_clause_html(
+    text: str,
+    query: str = "",
+    title: str = "",
+    clause_id: str = "",
+    doc_id: str = "",
+    version: str = "2.0",
+) -> str:
+    body = prepare_clause_markdown(text)
     rendered = _md(body)
     if title and clause_id:
         anchor = f'<a id="clause-{html.escape(clause_id)}"></a>'
         rendered = anchor + rendered
+    if doc_id:
+        rendered = linkify_clause_refs(rendered, doc_id, version)
     return highlight_html(rendered, query)
 
 SAFE_RE = re.compile(r"[^a-z0-9]+")

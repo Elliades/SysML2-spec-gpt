@@ -155,6 +155,7 @@ def _chunks_from_blocks(clause_id: str, title: str, blocks: list[TextBlock]) -> 
             "y0": round(b.y0, 2),
             "x1": round(b.x1, 2),
             "y1": round(b.y1, 2),
+            "text": b.text[:500],
             "origin": "fitz",
         }
         for b in blocks
