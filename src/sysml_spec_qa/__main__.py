@@ -12,6 +12,10 @@ def main(argv: list[str] | None = None) -> None:
     ingest.add_argument("--version", default="2.0", choices=["2.0", "2.1", "all"])
     ingest.add_argument("--skip-download", action="store_true")
 
+    sub.add_parser(
+        "boot",
+        help="Ingest the specs if the index is missing, then serve (Docker entrypoint)",
+    )
     sub.add_parser("serve", help="Run the localhost spec viewer (127.0.0.1:8797)")
     sub.add_parser("worker", help="Supervised viewer loop (same as scripts/worker.ps1)")
     export_md = sub.add_parser("export-md", help="Export the index to searchable markdown under data/md")
@@ -32,6 +36,11 @@ def main(argv: list[str] | None = None) -> None:
             ingest_all(["2.0", "2.1"], skip_download=args.skip_download)
         else:
             ingest_one(args.version, skip_download=args.skip_download)
+        return
+    if args.cmd == "boot":
+        from .boot import main as boot
+
+        boot()
         return
     if args.cmd == "serve":
         from .viewer_app import main as serve

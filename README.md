@@ -2,7 +2,34 @@
 
 Local, token-efficient search over the **KerML** and **SysML v2** language specifications, wired into Cursor via MCP. Answers come back as short excerpts plus **clickable links** that open a localhost PDF viewer on the cited page, with the passage highlighted.
 
-This repository does **not** contain the OMG PDFs. The OMG license forbids republishing the specifications on a network. Ingest downloads them into `data/` (gitignored) for personal informational use.
+This repository does **not** contain the OMG PDFs. The OMG license forbids republishing the specifications on a network. Ingest downloads them into `data/` (gitignored) for personal informational use. Keep the viewer on a **private** LAN or Tailscale — do not expose it on the public internet.
+
+## Deploy with Docker
+
+On any machine with Docker Compose v2:
+
+```bash
+git clone https://github.com/Elliades/SysML2-spec-gpt.git
+cd SysML2-spec-gpt
+cp .env.example .env
+# optional: set SYSML_VIEWER_URL to the hostname people will actually open
+docker compose up --build
+```
+
+First start downloads the KerML / SysML PDFs (personal use) and builds `data/index/spec.sqlite` — several minutes, needs outbound HTTPS. Later starts reuse `./data` and come up in seconds.
+
+Then open `http://localhost:3112` · health: `GET /api/health`.
+
+| Variable | Default | Role |
+| --- | --- | --- |
+| `SYSML_HOST_PORT` | `3112` | Host port published as `localhost:<port>` |
+| `SYSML_VIEWER_URL` | `http://localhost:3112` | Links in MCP / cites (set this to your LAN or reverse-proxy URL) |
+| `SYSML_SPEC_VERSION` | `2.0` | Stack to ingest: `2.0`, `2.1`, or `all` |
+| `SYSML_SKIP_INGEST` | `0` | `1` = start even without an index (pre-copied `data/index`) |
+| `SYSML_INGEST_FORCE` | `0` | `1` = rebuild the index on next start |
+| `SYSML_DATA` | `./data` | Bind-mount for PDFs + sqlite + markdown |
+
+Stop: `docker compose down`. Wipe the corpus: delete `./data` (or `docker compose down -v` if you switched to a named volume).
 
 ## Why KerML is in the corpus
 
@@ -11,9 +38,9 @@ Typical questions are not all in the SysML Language PDF:
 - Name uniqueness lives in KerML `Namespace`
 - Connector / BindingConnector are KerML Kernel concepts; SysML adds ConnectionUsage, ports, etc.
 
-## Setup
+## Setup (local Python)
 
-Python 3.11+. From this directory:
+Python 3.11+. Prefer [Docker](#deploy-with-docker) on another host. From this directory:
 
 ```powershell
 cd C:\workspace\sysml-spec-qa
@@ -71,7 +98,7 @@ Opens `http://127.0.0.1:8797`. Example deep links:
 
 Health: `GET http://127.0.0.1:8797/api/health`
 
-**Apps (homelab, private LAN + Tailscale):** port **3112**, catalog + named URL. Copies the derived index/markdown only — never `data/raw` PDFs.
+**Apps (homelab, private LAN + Tailscale):** same Docker stack, port **3112**. Set `SYSML_VIEWER_URL=http://sysml.apps.chaos-art.fr` in `.env`. To copy a pre-built index instead of downloading PDFs on the server, rsync `data/index` + `data/md` and set `SYSML_SKIP_INGEST=1`. Never publish `data/raw` PDFs.
 
 ```powershell
 cd C:\workspace\Apps-server
@@ -106,6 +133,7 @@ python -m pytest
 
 ## Layout
 
+- `Dockerfile` / `docker-compose.yml` — clone-and-run viewer (`python -m sysml_spec_qa boot`)
 - `src/sysml_spec_qa/ingest/` — download, clause-split PDFs, parse XMI, SQLite FTS5
 - `src/sysml_spec_qa/mcp_server.py` — Cursor tools
 - `scripts/worker.ps1` — restart loop for the viewer (used by the scheduled task)

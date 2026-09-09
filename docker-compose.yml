@@ -1,21 +1,40 @@
-# Private homelab viewer (LAN + Tailscale). Do not publish on the public internet:
-# OMG license forbids republishing the specifications on a network.
-# Mount only the derived index + markdown — never data/raw PDFs.
+# Private LAN / Tailscale viewer. Do not publish on the public internet:
+# the OMG license forbids republishing the specifications on a network.
+#
+# Clone + start (first boot downloads KerML/SysML PDFs into ./data, gitignored):
+#   cp .env.example .env    # optional: set SYSML_VIEWER_URL to your hostname
+#   docker compose up --build
+#
+# Then open http://localhost:3112  ·  GET /api/health
 services:
   sysml-spec-qa:
     build: .
     image: sysml-spec-qa:latest
     container_name: sysml-spec-qa
     restart: unless-stopped
+    init: true
     ports:
-      - "3112:3112"
+      - "${SYSML_HOST_PORT:-3112}:3112"
     environment:
       SYSML_SPEC_ROOT: /app
       SYSML_SPEC_DATA: /data
       SYSML_VIEWER_HOST: "0.0.0.0"
       SYSML_VIEWER_PORT: "3112"
-      SYSML_VIEWER_URL: ${SYSML_VIEWER_URL:-http://sysml.apps.chaos-art.fr}
+      SYSML_VIEWER_URL: ${SYSML_VIEWER_URL:-http://localhost:3112}
       SYSML_SPEC_VERSION: ${SYSML_SPEC_VERSION:-2.0}
+      SYSML_SKIP_INGEST: ${SYSML_SKIP_INGEST:-0}
+      SYSML_INGEST_FORCE: ${SYSML_INGEST_FORCE:-0}
     volumes:
-      - ./data/index:/data/index
-      - ./data/md:/data/md:ro
+      - ${SYSML_DATA:-./data}:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/api/health', timeout=6)",
+        ]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 15m

@@ -3,6 +3,9 @@ data/
 *.sqlite
 *.sqlite-*
 
+# Local deploy settings (copy from .env.example)
+.env
+
 # Python
 .venv/
 venv/
