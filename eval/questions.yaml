@@ -1,0 +1,20 @@
+questions:
+  - id: name-uniqueness
+    q: "c’est quoi les règles d’unicité des noms ?"
+    expect_terms: ["namespace", "unique"]
+    expect_docs: ["kerml"]
+  - id: connector-ends
+    q: "à quoi je peux connecter un connector ?"
+    expect_terms: ["connector"]
+  - id: imports
+    q: "comment fonctionne un import dans un namespace ?"
+    expect_terms: ["import", "namespace"]
+  - id: binding-connector
+    q: "what is a binding connector?"
+    expect_terms: ["binding"]
+  - id: feature-redefinition
+    q: "what are the rules for feature redefinition?"
+    expect_terms: ["redefinition", "feature"]
+  - id: connection-usage
+    q: "what can a SysML connection usage connect?"
+    expect_terms: ["connection"]

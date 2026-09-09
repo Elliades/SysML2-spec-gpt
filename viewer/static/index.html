@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SysML spec viewer</title>
+  <link rel="stylesheet" href="/static/viewer.css" />
+</head>
+<body>
+  <header>
+    <label>Doc
+      <select id="doc"></select>
+    </label>
+    <label>Version
+      <select id="version"></select>
+    </label>
+    <label>Clause
+      <input id="clause" placeholder="7.2.5" />
+    </label>
+    <label>Find
+      <input id="query" placeholder="unique name" />
+    </label>
+    <button id="go" type="button">Open</button>
+    <span id="page-label"></span>
+    <button id="prev" type="button">Prev</button>
+    <button id="next" type="button">Next</button>
+  </header>
+  <main>
+    <aside id="hits"></aside>
+    <section id="stage">
+      <div id="page-wrap">
+        <canvas id="pdf-canvas"></canvas>
+        <div id="overlay"></div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/static/viewer.js"></script>
+</body>
+</html>

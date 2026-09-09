@@ -1,0 +1,96 @@
+:root {
+  color-scheme: dark;
+  --bg: #111418;
+  --panel: #1b2026;
+  --text: #e8edf2;
+  --muted: #9aa7b5;
+  --accent: #e6c15a;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: var(--panel);
+  border-bottom: 1px solid #2c333c;
+}
+
+label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+input, select, button {
+  background: #10141a;
+  color: var(--text);
+  border: 1px solid #3a4450;
+  border-radius: 4px;
+  padding: 0.3rem 0.45rem;
+}
+
+button { cursor: pointer; }
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 0;
+}
+
+#hits {
+  overflow: auto;
+  padding: 0.75rem;
+  border-right: 1px solid #2c333c;
+  font-size: 0.85rem;
+}
+
+#hits a {
+  color: var(--accent);
+}
+
+#hits article {
+  margin-bottom: 1rem;
+}
+
+#stage {
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+#page-wrap {
+  position: relative;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+#pdf-canvas { display: block; }
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hl {
+  position: absolute;
+  background: rgba(230, 193, 90, 0.32);
+  outline: 1px solid rgba(230, 193, 90, 0.85);
+}

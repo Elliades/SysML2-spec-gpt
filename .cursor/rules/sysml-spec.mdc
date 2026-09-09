@@ -1,0 +1,13 @@
+---
+description: Use the SysML/KerML spec MCP instead of quoting the specification from memory
+alwaysApply: true
+---
+
+When the user asks about SysML v2 or KerML language rules (names, namespaces, connectors, features, usages, constraints, grammar), call the `sysml-spec` MCP tools in this order:
+
+1. `spec_element` if the question is about a named metaclass (Connector, Namespace, Feature, …)
+2. `spec_route` to get clause ids without dumping text
+3. `spec_search` for a short excerpt set (k ≤ 3)
+4. `spec_get` only for the one clause that actually answers the question
+
+Never paste large specification extracts into the chat. Cite clause numbers, say whether the passage is informative (typically clause 7) or normative (clause 8+), and include the highlighted viewer links returned by the tools.

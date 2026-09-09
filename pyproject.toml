@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sysml-spec-qa"
+version = "0.1.0"
+description = "Token-efficient SysML v2 / KerML spec search for Cursor (MCP) with a local highlighted PDF viewer."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Elliades" }]
+dependencies = [
+  "pymupdf>=1.24.0",
+  "httpx>=0.27.0",
+  "fastapi>=0.115.0",
+  "uvicorn>=0.32.0",
+  "mcp>=1.2.0",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+sysml-spec = "sysml_spec_qa.__main__:main"
+sysml-mcp = "sysml_spec_qa.mcp_server:main"
+sysml-viewer = "sysml_spec_qa.viewer_app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
