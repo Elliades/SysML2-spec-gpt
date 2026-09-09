@@ -1,10 +1,8 @@
 <#
 .SYNOPSIS
-  Register SysmlSpecQa-Worker (logon + boot) like quatermaster-backup.
+  Autostart the local spec viewer (FastAPI on :8797). NOT the Cursor Cloud Agent CLI.
 
-.EXAMPLE
-  .\scripts\install-worker.ps1
-  Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File C:\workspace\sysml-spec-qa\scripts\install-worker.ps1'
+  For My Machines in Cursor Agents UI, use install-agent-worker.ps1 instead.
 #>
 [CmdletBinding()]
 param(

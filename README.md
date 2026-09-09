@@ -49,16 +49,19 @@ Default viewer port is **8797** (`SYSML_VIEWER_PORT`) — avoids collision with 
 python -m sysml_spec_qa serve
 ```
 
-**Worker autostart** (like `quatermaster-backup` — scheduled task + Startup shortcut):
+**Viewer autostart** (local HTTP server on :8797 — **not** the Cursor Cloud Agent CLI):
 
 ```powershell
-cd C:\workspace\sysml-spec-qa
 .\scripts\install-worker.ps1
-# elevated optional; re-run to update task/shortcut
-.\scripts\uninstall-worker.ps1   # remove
 ```
 
-Registers **`SysmlSpecQa-Worker`** (AtStartup +45s, AtLogOn). Logs: `data/logs/worker.log`.
+**Cursor Cloud Agent worker** (My Machines — visible in **Cursor → Agents → environment**):
+
+```powershell
+.\scripts\install-agent-worker.ps1
+```
+
+Registers **`Quatermaster-sysml-spec-qa`** via `~\homelab\start-cursor-agent-worker.ps1` (Startup shortcut *Cursor Agent Worker*, same as Q-Home / Rec-it). Requires `agent login` once. Repo: `Elliades/SysML2-spec-gpt`.
 
 Opens `http://127.0.0.1:8797`. Example deep links:
 
