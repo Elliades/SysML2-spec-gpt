@@ -1,18 +1,28 @@
 # Private LAN / Tailscale viewer. Do not publish on the public internet:
 # the OMG license forbids republishing the specifications on a network.
 #
-# Clone + start (first boot downloads KerML/SysML PDFs into ./data, gitignored):
-#   cp .env.example .env    # optional: set SYSML_VIEWER_URL to your hostname
-#   docker compose up --build
+# Clone + start (or: .\scripts\pack-for-work.ps1 tonight, .\scripts\deploy.ps1 at work):
+#   powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
 #
 # Then open http://localhost:3112  ·  GET /api/health
 services:
   sysml-spec-qa:
-    build: .
+    build:
+      context: .
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1}
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+        no_proxy: ${no_proxy:-localhost,127.0.0.1}
     image: sysml-spec-qa:latest
     container_name: sysml-spec-qa
     restart: unless-stopped
     init: true
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "${SYSML_HOST_PORT:-3112}:3112"
     environment:

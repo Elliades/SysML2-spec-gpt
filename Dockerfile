@@ -11,6 +11,14 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 COPY viewer ./viewer
 
+# Corporate proxy (Compose passes HTTP_PROXY / HTTPS_PROXY as build args).
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
 RUN pip install --no-cache-dir .
 
 ENV SYSML_SPEC_ROOT=/app

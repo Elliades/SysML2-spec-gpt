@@ -6,13 +6,31 @@ This repository does **not** contain the OMG PDFs. The OMG license forbids repub
 
 ## Deploy with Docker
 
+**Demain au bureau (Windows + Docker Desktop)**
+
+1. **Ce soir** (réseau perso) : `powershell -ExecutionPolicy Bypass -File .\scripts\pack-for-work.ps1`  
+   Copier sur USB / OneDrive : le repo + `dist\sysml-spec-qa.tar` + le dossier `data\` s’il existe déjà (boot sans download OMG).
+2. **Demain** : ouvrir le dossier, `powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1`  
+   → `http://localhost:3112`
+
+Le script charge l’image `.tar` si Docker Hub est bloqué, crée `.env` tout seul, attend `/api/health`, ouvre le navigateur.
+
+Si le réseau du taf autorise GitHub + Docker Hub + `omg.org` (proxy éventuel dans `.env`) :
+
+```powershell
+git clone https://github.com/Elliades/SysML2-spec-gpt.git
+cd SysML2-spec-gpt
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1
+```
+
+Repo **privé** : `gh auth login` (ou un PAT) avant le clone. Ne pas exposer le viewer sur Internet public (licence OMG).
+
 On any machine with Docker Compose v2:
 
 ```bash
 git clone https://github.com/Elliades/SysML2-spec-gpt.git
 cd SysML2-spec-gpt
 cp .env.example .env
-# optional: set SYSML_VIEWER_URL to the hostname people will actually open
 docker compose up --build
 ```
 
@@ -134,6 +152,7 @@ python -m pytest
 ## Layout
 
 - `Dockerfile` / `docker-compose.yml` — clone-and-run viewer (`python -m sysml_spec_qa boot`)
+- `scripts/pack-for-work.ps1` / `scripts/deploy.ps1` — USB image tonight, start at work tomorrow
 - `src/sysml_spec_qa/ingest/` — download, clause-split PDFs, parse XMI, SQLite FTS5
 - `src/sysml_spec_qa/mcp_server.py` — Cursor tools
 - `scripts/worker.ps1` — restart loop for the viewer (used by the scheduled task)
