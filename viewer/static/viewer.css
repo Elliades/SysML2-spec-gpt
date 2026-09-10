@@ -451,19 +451,53 @@ body.toc-resizing {
   padding: 0.05em 0.15em;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: none;
 }
-.clause-body .cite-para.cite-0,
-.clause-body .cite-excerpt.cite-0 { background: rgba(232, 184, 74, 0.14); border-left-color: rgba(232, 184, 74, 0.5); }
-.clause-body .cite-para.cite-1,
-.clause-body .cite-excerpt.cite-1 { background: rgba(94, 179, 255, 0.12); border-left-color: rgba(94, 179, 255, 0.45); }
-.clause-body .cite-para.cite-2,
-.clause-body .cite-excerpt.cite-2 { background: rgba(74, 222, 128, 0.1); border-left-color: rgba(74, 222, 128, 0.42); }
-.clause-body .cite-para.cite-3,
-.clause-body .cite-excerpt.cite-3 { background: rgba(180, 140, 255, 0.12); border-left-color: rgba(180, 140, 255, 0.45); }
-.clause-body .cite-para.cite-4,
-.clause-body .cite-excerpt.cite-4 { background: rgba(255, 140, 120, 0.1); border-left-color: rgba(255, 140, 120, 0.42); }
-.clause-body .cite-para.cite-5,
-.clause-body .cite-excerpt.cite-5 { background: rgba(120, 200, 180, 0.1); border-left-color: rgba(120, 200, 180, 0.42); }
+.clause-body .cite-para.cite-0 { background: rgba(232, 184, 74, 0.14); border-left-color: rgba(232, 184, 74, 0.5); }
+.clause-body .cite-excerpt.cite-0 {
+  background: rgba(232, 184, 74, 0.14);
+  color: #f5d078;
+  text-decoration-color: #e8b84a;
+  box-shadow: inset 0 -2px 0 rgba(232, 184, 74, 0.9);
+}
+.clause-body .cite-para.cite-1 { background: rgba(94, 179, 255, 0.12); border-left-color: rgba(94, 179, 255, 0.45); }
+.clause-body .cite-excerpt.cite-1 {
+  background: rgba(94, 179, 255, 0.12);
+  color: #b8dcff;
+  text-decoration-color: #5eb3ff;
+  box-shadow: inset 0 -2px 0 rgba(94, 179, 255, 0.85);
+}
+.clause-body .cite-para.cite-2 { background: rgba(74, 222, 128, 0.1); border-left-color: rgba(74, 222, 128, 0.42); }
+.clause-body .cite-excerpt.cite-2 {
+  background: rgba(74, 222, 128, 0.1);
+  color: #9ef0b8;
+  text-decoration-color: #4ade80;
+  box-shadow: inset 0 -2px 0 rgba(74, 222, 128, 0.85);
+}
+.clause-body .cite-para.cite-3 { background: rgba(180, 140, 255, 0.12); border-left-color: rgba(180, 140, 255, 0.45); }
+.clause-body .cite-excerpt.cite-3 {
+  background: rgba(180, 140, 255, 0.12);
+  color: #d4bcff;
+  text-decoration-color: #b48cff;
+  box-shadow: inset 0 -2px 0 rgba(180, 140, 255, 0.85);
+}
+.clause-body .cite-para.cite-4 { background: rgba(255, 140, 120, 0.1); border-left-color: rgba(255, 140, 120, 0.42); }
+.clause-body .cite-excerpt.cite-4 {
+  background: rgba(255, 140, 120, 0.1);
+  color: #ffc4b8;
+  text-decoration-color: #ff8c78;
+  box-shadow: inset 0 -2px 0 rgba(255, 140, 120, 0.85);
+}
+.clause-body .cite-para.cite-5 { background: rgba(120, 200, 180, 0.1); border-left-color: rgba(120, 200, 180, 0.42); }
+.clause-body .cite-excerpt.cite-5 {
+  background: rgba(120, 200, 180, 0.1);
+  color: #a8e8d8;
+  text-decoration-color: #78c8b4;
+  box-shadow: inset 0 -2px 0 rgba(120, 200, 180, 0.85);
+}
 .clause-body a.clause-ref {
   color: var(--sysml);
   text-decoration: none;
