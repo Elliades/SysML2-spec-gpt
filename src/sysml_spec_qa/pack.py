@@ -337,16 +337,18 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
     if lang == "fr":
         citation_note = (
             "Dans le chat, cite uniquement les morceaux des points marqués (quote_en du pack), "
-            "pas la clause entière. Intègre une citation exacte dans le paragraphe "
-            "(La spec : « … »), puis la traduction fidèle. Pas de blocs quote_fr séparés."
+            "pas la clause entière. Les guillemets « » contiennent toujours le quote_en anglais "
+            "exact — jamais une traduction française. Intègre la citation dans le paragraphe "
+            "(La spec : « … »), puis une ligne *Traduction :* hors guillemets. "
+            "Pas de blocs quote_fr séparés."
         )
         format_md = (
             "> ### Réponse spec\n"
             ">\n"
             "> **[Verdict.]** [règle en une phrase]\n"
             ">\n"
-            "> La spec : « [quote_en exact] » (`[doc]` `[clause]`, informative|normative) — [session_url].\n"
-            "> [Traduction fidèle.]\n"
+            "> La spec : « [quote_en exact, anglais] » (`[doc]` `[clause]`, informative|normative) — [session_url].\n"
+            "> *Traduction :* [traduction fidèle, hors guillemets]\n"
             ">\n"
             "> > **Exception** *(si fournie)*\n"
             "> >\n"
