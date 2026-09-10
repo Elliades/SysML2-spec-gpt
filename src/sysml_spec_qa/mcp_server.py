@@ -173,8 +173,8 @@ def main() -> None:
             "are known. Always include session_url / reader_url links. Keep answers short. "
             "Follow answer_contract.shape (verdict, rule, exception?, conclusion, cost). "
             "In chat, cite only marked passage excerpts (quote_en), not whole clauses. "
-            "Citations are always verbatim English quote_en inside guillemets — never French. "
-            "For French answers, add *Traduction :* on the next line, outside guillemets."
+            "Markdown blockquote = original-language spec only (verbatim quote_en + doc/clause/link). "
+            "No French inside the blockquote. French prose and *Traduction :* always outside."
         ),
     )
     _attach_tools(mcp)

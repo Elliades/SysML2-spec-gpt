@@ -25,7 +25,7 @@ Never paste large specification extracts into the chat. Never answer from memory
 Follow the pack `answer_contract.shape` in order:
 
 1. **Réponse** — one sentence (decision or definition).
-2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question. Then **one** integrated citation: `La spec : « [exact quote_en] » ([doc] [clause], informative|normative) — [session_url or reader_url]`. The text inside « » is **always** the exact English `quote_en` from the pack — **never** French, never paraphrased. If answering in French, add a faithful translation on the next line (prefix *Traduction :*), **outside** the guillemets.
+2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question (prose française, **hors** encadré). Puis **un encadré markdown** (blockquote `>`) contenant **uniquement** la spec dans sa langue d'origine : `« [exact quote_en] »` puis `([doc] [clause], informative|normative) — [session_url]`. Rien d'autre dans l'encadré — pas de « La spec : », pas de traduction. Après l'encadré : `*Traduction :* …` si la réponse est en français.
 3. **Exception** — only if the pack provides `exception`; at most one extra citation. Omit this section if `exception` is null.
 4. **Conclusion** — one operational sentence.
 5. **Coût** — `recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} € (input agent, index local gratuit)` using values from pack `cost`.
@@ -34,14 +34,21 @@ Open questions (what / how): same order — definition first, then one integrate
 
 > ### Modèle de réponse (encart)
 >
-> **Non.** [la règle en une phrase]
+> **Non.** [la règle en une phrase — prose française, hors encadré]
 >
-> La spec : « [quote_en exact, anglais] » (`[doc]` `[clause]`, informative|normative) — [session link].
-> *Traduction :* [traduction fidèle en français, hors guillemets — jamais à la place du quote_en]
+> > « [quote_en exact, anglais] »
+> > (`[doc]` `[clause]`, informative|normative) — [session link]
+>
+> *Traduction :* [traduction fidèle — **toujours hors** l'encadré]
 >
 > > **Exception** *(seulement si le pack fournit `exception`)*
 > >
-> > Possible seulement si [condition] : [raison + au plus une citation supplémentaire].
+> > [explication française — hors encadré de citation]
+> >
+> > > « [exception quote_en, anglais] »
+> > > (`[doc]` `[clause]`, informative|normative)
+> >
+> > *Traduction :* [traduction fidèle de l'exception]
 >
 > **Conclusion :** [une phrase opérationnelle.]
 >
@@ -51,11 +58,10 @@ Open questions (what / how): same order — definition first, then one integrate
 ## Citation rules
 
 - Use the exact English `quote_en` from the tool (the marked passage / point marqué). Do not paraphrase it before showing it.
-- **Citations are always in the spec's original language (English).** Even when the answer is in French, the quoted passage inside « » must be the verbatim `quote_en` — not a French translation, not a summary dressed as a quote.
-- **Always show the original English quote in chat** (integrated in the rule paragraph, or as a short blockquote immediately after it), then the faithful French translation on a separate line prefixed *Traduction :* (outside guillemets).
+- **L'encadré markdown (blockquote `>`) = spec dans la langue d'origine uniquement.** Contenu : `« quote_en »` + métadonnées (`doc`, `clause`, informative|normative, lien). Aucun français dans l'encadré — ni « La spec : », ni *Traduction :*, ni explication.
+- **Prose française et *Traduction :* toujours hors encadré**, sur les lignes qui précèdent ou suivent le blockquote.
 - One point marqué per cite : primary `quote_en`, plus exception `quote_en` only when the pack provides `exception`.
-- Integrate it in the paragraph (`La spec : « … »`). Do not open a heading per source.
-- Exception blocks follow the same rule: English `quote_en` in guillemets, then optional *Traduction :* line.
+- Exception : explication française dans le bloc Exception, puis sous-encadré `> >` avec le `quote_en` anglais seul, puis *Traduction :* hors sous-encadré.
 - Cite doc + clause + informative (typically cl. 7) or normative (cl. 8+).
 - Include the `session_url` (multi-cite) or `reader_url` (single cite) from the pack.
 - SysML first. KerML only if the user named KerML, or SysML has no applicable rule.
@@ -67,14 +73,18 @@ Open questions (what / how): same order — definition first, then one integrate
 >
 > Plusieurs blocs `quote_en` / `quote_fr` / `explanation_fr`, puis des exemples de quand ça « marche ».
 >
-> Citation traduite : « Toutes les appartenances d'un namespace doivent être distinguables. » — **interdit** : les guillemets doivent contenir l'anglais du pack, pas la traduction.
+> Citation traduite dans l'encadré : `> « Toutes les appartenances… »` — **interdit**.
+>
+> Mélange dans l'encadré : `> La spec : « All memberships… »` + `*Traduction :* …` — **interdit** : l'encadré = anglais seul.
 
 > ### Bon exemple
 >
 > **Non.** Un `partDef` ne peut pas contenir à la fois un `partUsage` hérité `^a` et un `partUsage` local `a` distinct : chaque nom dans un namespace identifie un seul membre.
 >
-> La spec : « All memberships of a Namespace must be distinguishable from each other. » (`kerml-1.1` 8.3.2.4.5, normative) — [session link].
-> Toutes les appartenances d’un namespace doivent être distinguables.
+> > « All memberships of a Namespace must be distinguishable from each other. »
+> > (`kerml-1.1` `8.3.2.4.5`, normative) — [session link]
+>
+> *Traduction :* toutes les appartenances d’un namespace doivent être distinguables.
 >
 > > **Exception**
 > >

@@ -61,10 +61,11 @@ def test_answer_pack_shape(tmp_path, monkeypatch):
     assert "shape" in pack.answer_contract
     assert pack.answer_contract["shape"][0] == "verdict"
     assert "points marqués" in pack.answer_contract["citation"]
-    assert "anglais" in pack.answer_contract["citation"]
+    assert "encadré" in pack.answer_contract["citation"]
     assert "Traduction" in pack.answer_contract["format_markdown"]
     assert "format_markdown" in pack.answer_contract
-    assert "> ### Réponse spec" in pack.answer_contract["format_markdown"]
+    assert "> « [quote_en exact, anglais] »" in pack.answer_contract["format_markdown"]
+    assert "La spec :" not in pack.answer_contract["format_markdown"]
     assert len(pack.examples) == 0
 
 
