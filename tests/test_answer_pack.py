@@ -2,10 +2,12 @@ from pathlib import Path
 
 import pymupdf
 
+from sysml_spec_qa.config import EUR_PER_MTOK, MAX_TOTAL_EXCERPT_WORDS
 from sysml_spec_qa.ingest.build import ingest
 from sysml_spec_qa.ingest.manifest import SpecDoc
 from sysml_spec_qa.pack import answer_pack, cites_link, clause_pack
 from sysml_spec_qa.query import analyze_query
+from sysml_spec_qa.textutil import estimate_tokens, word_count
 
 
 def _mini_ingest(tmp_path: Path, monkeypatch):
@@ -59,6 +61,25 @@ def test_answer_pack_shape(tmp_path, monkeypatch):
     assert "shape" in pack.answer_contract
     assert pack.answer_contract["shape"][0] == "verdict"
     assert len(pack.examples) == 0
+
+
+def test_pack_tokens_after_refine_matches_excerpts(tmp_path, monkeypatch):
+    db = _mini_ingest(tmp_path, monkeypatch)
+    pack = answer_pack("unicité des noms", version="2.0", db_path=db)
+    parts: list[str] = []
+    if pack.primary:
+        parts.append(pack.primary.quote_en)
+    if pack.exception:
+        parts.append(pack.exception.quote_en)
+    parts.extend(e.text for e in pack.examples)
+    assert pack.cost["pack_tokens"] == sum(estimate_tokens(p) for p in parts)
+    excerpt_parts = parts[:2] if pack.exception else parts[:1]
+    excerpt_words = sum(word_count(p) for p in excerpt_parts)
+    assert excerpt_words <= MAX_TOTAL_EXCERPT_WORDS
+    assert pack.cost["estimated_eur"] == round(
+        pack.cost["pack_tokens"] / 1_000_000 * EUR_PER_MTOK, 6
+    )
+    assert pack.cost["retrieval_ms"] >= 0
 
 
 def test_clause_pack_and_cites_link(tmp_path, monkeypatch):
