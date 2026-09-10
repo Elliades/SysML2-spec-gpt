@@ -340,15 +340,49 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
             "pas la clause entière. Intègre une citation exacte dans le paragraphe "
             "(La spec : « … »), puis la traduction fidèle. Pas de blocs quote_fr séparés."
         )
+        format_md = (
+            "> ### Réponse spec\n"
+            ">\n"
+            "> **[Verdict.]** [règle en une phrase]\n"
+            ">\n"
+            "> La spec : « [quote_en exact] » (`[doc]` `[clause]`, informative|normative) — [session_url].\n"
+            "> [Traduction fidèle.]\n"
+            ">\n"
+            "> > **Exception** *(si fournie)*\n"
+            "> >\n"
+            "> > [condition + citation exception]\n"
+            ">\n"
+            "> **Conclusion :** [phrase opérationnelle.]\n"
+            ">\n"
+            "> ---\n"
+            "> *recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} €*"
+        )
     else:
         citation_note = (
             "In chat, cite only the marked passage excerpts (pack quote_en), not the whole "
             "clause. Integrate one exact quote_en in the answer paragraph."
         )
+        format_md = (
+            "> ### Spec answer\n"
+            ">\n"
+            "> **[Verdict.]** [rule in one sentence]\n"
+            ">\n"
+            "> The spec: « [exact quote_en] » (`[doc]` `[clause]`, informative|normative) — [session_url].\n"
+            ">\n"
+            "> > **Exception** *(if provided)*\n"
+            "> >\n"
+            "> > [condition + exception citation]\n"
+            ">\n"
+            "> **Conclusion:** [one operational sentence.]\n"
+            ">\n"
+            "> ---\n"
+            "> *retrieval {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} €*"
+        )
     return {
         "shape": shape,
         "language": lang,
         "citation": citation_note,
+        "format_markdown": format_md,
         "prefer_sysml_over_kerml": analysis.get("prefer_sysml", True),
         "cite_kerml_only_when": (
             "user explicitly mentions KerML, or SysML has no applicable passage"
