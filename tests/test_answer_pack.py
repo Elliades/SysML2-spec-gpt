@@ -60,6 +60,7 @@ def test_answer_pack_shape(tmp_path, monkeypatch):
     assert "retrieval_ms" in pack.cost
     assert "shape" in pack.answer_contract
     assert pack.answer_contract["shape"][0] == "verdict"
+    assert "points marqués" in pack.answer_contract["citation"]
     assert len(pack.examples) == 0
 
 
@@ -80,6 +81,13 @@ def test_pack_tokens_after_refine_matches_excerpts(tmp_path, monkeypatch):
         pack.cost["pack_tokens"] / 1_000_000 * EUR_PER_MTOK, 6
     )
     assert pack.cost["retrieval_ms"] >= 0
+
+
+def test_cite_ref_viewer_url_carries_quote(tmp_path, monkeypatch):
+    db = _mini_ingest(tmp_path, monkeypatch)
+    pack = answer_pack("unicité des noms", version="2.0", db_path=db)
+    assert pack.primary is not None
+    assert "quote=" in pack.primary.viewer_url
 
 
 def test_clause_pack_and_cites_link(tmp_path, monkeypatch):

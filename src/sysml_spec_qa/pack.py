@@ -129,8 +129,10 @@ def _passage_to_cite(row: dict, quote: str, query: str = "") -> CiteRef:
         page_start=row["page_start"],
         quote_en=quote,
         md_path=clause_relpath(version, doc_id, clause_id, row["title"]),
-        reader_url=reader_link(doc_id, version, clause_id, query),
-        viewer_url=viewer_link(doc_id, version, row["page_start"], clause_id, query),
+        reader_url=reader_link(doc_id, version, clause_id, query, quote=quote),
+        viewer_url=viewer_link(
+            doc_id, version, row["page_start"], clause_id, query, quote=quote
+        ),
         markdown_url=clause_md_url(doc_id, version, clause_id, query),
     )
 
@@ -334,11 +336,15 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
     lang = analysis["language"]
     if lang == "fr":
         citation_note = (
-            "Integrate one exact quote_en in the paragraph (La spec : « … »), then faithful "
-            "French translation. Do not stack separate quote_fr blocks."
+            "Dans le chat, cite uniquement les morceaux des points marqués (quote_en du pack), "
+            "pas la clause entière. Intègre une citation exacte dans le paragraphe "
+            "(La spec : « … »), puis la traduction fidèle. Pas de blocs quote_fr séparés."
         )
     else:
-        citation_note = "Integrate one exact quote_en in the answer paragraph."
+        citation_note = (
+            "In chat, cite only the marked passage excerpts (pack quote_en), not the whole "
+            "clause. Integrate one exact quote_en in the answer paragraph."
+        )
     return {
         "shape": shape,
         "language": lang,

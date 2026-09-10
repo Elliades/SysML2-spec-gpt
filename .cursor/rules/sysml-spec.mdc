@@ -13,6 +13,8 @@ When the user asks about SysML v2 or KerML language rules (names, namespaces, co
 
 Never paste large specification extracts into the chat. Never answer from memory. Prefer `spec_answer_pack` and **one primary passage** (a second only if the pack provides `exception`). Do not dump whole clauses.
 
+**Points marqués :** dans le chat, cite uniquement les morceaux des **points marqués** (`quote_en` du pack — l’extrait surligné dans le viewer PDF), pas la clause entière.
+
 ## Answer shape (closed / rule questions)
 
 Follow the pack `answer_contract.shape` in order:
@@ -40,8 +42,9 @@ recherche 42 ms · pack ~180 tokens · ~0.0005 € (input agent, index local gra
 
 ## Citation rules
 
-- Use the exact English `quote_en` from the tool. Do not paraphrase it before showing it.
+- Use the exact English `quote_en` from the tool (the marked passage / point marqué). Do not paraphrase it before showing it.
 - **Always show the original English quote in chat** (integrated in the rule paragraph, or as a short blockquote immediately after it), then the faithful French translation.
+- One point marqué per cite : primary `quote_en`, plus exception `quote_en` only when the pack provides `exception`.
 - Integrate it in the paragraph (`La spec : « … »`). Do not open a heading per source.
 - Cite doc + clause + informative (typically cl. 7) or normative (cl. 8+).
 - Include the `session_url` (multi-cite) or `reader_url` (single cite) from the pack.

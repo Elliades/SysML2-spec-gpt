@@ -172,6 +172,7 @@ def main() -> None:
             "metaclasses, spec_answer_pack for questions, spec_clause_pack when clause ids "
             "are known. Always include session_url / reader_url links. Keep answers short. "
             "Follow answer_contract.shape (verdict, rule, exception?, conclusion, cost). "
+            "In chat, cite only marked passage excerpts (quote_en), not whole clauses. "
             "For French answers, integrate exact quote_en then faithful translation."
         ),
     )

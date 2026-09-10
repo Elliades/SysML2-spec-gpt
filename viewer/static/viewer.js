@@ -29,6 +29,7 @@ const state = {
   pdfTocOpen: true,
   pdfNavLock: false,
   tocCollapsed: false,
+  activeQuote: "",
 };
 
 const els = {
@@ -87,6 +88,7 @@ function parseUrl() {
   const path = location.pathname;
   const params = new URLSearchParams(location.search);
   state.query = params.get("q") || "";
+  state.activeQuote = params.get("quote") || "";
   els.query.value = state.query;
 
   if (path.startsWith("/r/")) {
@@ -483,6 +485,7 @@ function activeCiteQuote() {
     const item = state.sessionItems[state.sessionIndex];
     if (item?.quote_en) return item.quote_en;
   }
+  if (state.activeQuote) return state.activeQuote;
   if (state.mode === "search" && state.searchHits.length) {
     const hit = state.searchHits.find(
       (h) => h.doc_id === state.docId && h.clause_id === state.clauseId

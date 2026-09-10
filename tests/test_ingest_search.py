@@ -120,3 +120,13 @@ def test_ingest_and_search(tmp_path, monkeypatch):
     link = viewer_link("kerml-1.0", "2.0", 1, "7.2.5", "unique")
     assert "kerml-1.0" in link
     assert "clause=7.2.5" in link
+
+    quoted = viewer_link(
+        "kerml-1.0",
+        "2.0",
+        1,
+        "7.2.5",
+        "unique",
+        quote="Every owned name in a Namespace must be unique.",
+    )
+    assert "quote=Every" in quoted
