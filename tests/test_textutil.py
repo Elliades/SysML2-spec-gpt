@@ -1,8 +1,21 @@
-from sysml_spec_qa.textutil import cite_sentence, excerpt, fts_query, normative_line_quote, word_count
+from sysml_spec_qa.textutil import (
+    cite_sentence,
+    estimate_tokens,
+    excerpt,
+    fts_query,
+    normative_line_quote,
+    word_count,
+)
 
 
 def test_word_count():
     assert word_count("one two three") == 3
+
+
+def test_estimate_tokens_empty_and_nonempty():
+    assert estimate_tokens("") == 0
+    assert estimate_tokens("   ") == 0
+    assert estimate_tokens("one two three") == 4
 
 
 def test_cite_sentence_finds_term():
