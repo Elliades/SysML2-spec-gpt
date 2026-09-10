@@ -57,6 +57,11 @@ def test_answer_pack_shape(tmp_path, monkeypatch):
     assert pack.session_url
     assert "/cites?" in pack.session_url
     assert pack.cost["pack_tokens"] > 0
+    assert pack.cost["excerpt_tokens"] == pack.cost["pack_tokens"]
+    assert "footer_fr" in pack.cost
+    assert "footer_en" in pack.cost
+    assert "quote_en" in pack.cost["footer_fr"]
+    assert "Cursor/Composer" in pack.cost["footer_fr"]
     assert "retrieval_ms" in pack.cost
     assert "shape" in pack.answer_contract
     assert pack.answer_contract["shape"][0] == "verdict"
@@ -86,6 +91,7 @@ def test_pack_tokens_after_refine_matches_excerpts(tmp_path, monkeypatch):
         pack.cost["pack_tokens"] / 1_000_000 * EUR_PER_MTOK, 6
     )
     assert pack.cost["retrieval_ms"] >= 0
+    assert str(pack.cost["excerpt_tokens"]) in pack.cost["footer_fr"]
 
 
 def test_cite_ref_viewer_url_carries_quote(tmp_path, monkeypatch):

@@ -140,7 +140,7 @@ Copie manuelle possible depuis [`.cursor/mcp.json`](.cursor/mcp.json). Ensuite d
 - « c’est quoi les règles d’unicité des noms ? »
 - « à quoi je peux connecter un connector ? »
 
-The MCP tools are `spec_element`, `spec_answer_pack`, `spec_clause_pack`, `spec_examples`, plus `spec_route`, `spec_search`, `spec_get`. Prefer `spec_answer_pack` for questions: it returns one primary cite (+ optional exception), `session_url`, exact English `quote_en`, and `cost` (tokens, ms, €). Token budget stays around 160 words of source text.
+The MCP tools are `spec_element`, `spec_answer_pack`, `spec_clause_pack`, `spec_examples`, plus `spec_route`, `spec_search`, `spec_get`. Prefer `spec_answer_pack` for questions: it returns one primary cite (+ optional exception), `session_url`, exact English `quote_en`, and `cost` (`excerpt_tokens`, `footer_fr` / `footer_en`, retrieval ms). `excerpt_tokens` counts marked `quote_en` excerpts only—not the full Cursor agent turn.
 
 **Eval** (needs a built index):
 

@@ -28,7 +28,7 @@ Follow the pack `answer_contract.shape` in order:
 2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question (prose française, **hors** encadré). Puis **un encadré markdown** (blockquote `>`) contenant **uniquement** la spec dans sa langue d'origine : `« [exact quote_en] »` puis `([doc] [clause], informative|normative) — [session_url]`. Rien d'autre dans l'encadré — pas de « La spec : », pas de traduction. Après l'encadré : `*Traduction :* …` si la réponse est en français.
 3. **Exception** — only if the pack provides `exception`; at most one extra citation. Omit this section if `exception` is null.
 4. **Conclusion** — one operational sentence.
-5. **Coût** — `recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} € (input agent, index local gratuit)` using values from pack `cost`.
+5. **Coût** — copier tel quel `cost.footer_fr` (réponse en français) ou `cost.footer_en` (réponse en anglais), en italique. Ce pied de page mesure **uniquement** les extraits `quote_en` du pack, pas l’usage Cursor/Composer du tour.
 
 Open questions (what / how): same order — definition first, then one integrated English citation. Never a pile of source blocks.
 
@@ -53,7 +53,7 @@ Open questions (what / how): same order — definition first, then one integrate
 > **Conclusion :** [une phrase opérationnelle.]
 >
 > ---
-> *recherche 42 ms · pack ~180 tokens · ~0.0005 € (input agent, index local gratuit)*
+> *recherche 42 ms · extraits spec ~180 tok (quote_en des points marqués uniquement) · index local gratuit — hors tour Cursor/Composer*
 
 ## Citation rules
 
@@ -93,4 +93,4 @@ Open questions (what / how): same order — definition first, then one integrate
 > **Conclusion :** déclarer un usage local `a` sans `:>>` sur l’hérité `^a` viole la distinguabilité des memberships.
 >
 > ---
-> *recherche 38 ms · pack ~165 tokens · ~0.0004 € (input agent, index local gratuit)*
+> *recherche 38 ms · extraits spec ~165 tok (quote_en des points marqués uniquement) · index local gratuit — hors tour Cursor/Composer*
