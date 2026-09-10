@@ -129,8 +129,10 @@ def _passage_to_cite(row: dict, quote: str, query: str = "") -> CiteRef:
         page_start=row["page_start"],
         quote_en=quote,
         md_path=clause_relpath(version, doc_id, clause_id, row["title"]),
-        reader_url=reader_link(doc_id, version, clause_id, query),
-        viewer_url=viewer_link(doc_id, version, row["page_start"], clause_id, query),
+        reader_url=reader_link(doc_id, version, clause_id, query, quote=quote),
+        viewer_url=viewer_link(
+            doc_id, version, row["page_start"], clause_id, query, quote=quote
+        ),
         markdown_url=clause_md_url(doc_id, version, clause_id, query),
     )
 
@@ -334,15 +336,63 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
     lang = analysis["language"]
     if lang == "fr":
         citation_note = (
-            "Integrate one exact quote_en in the paragraph (La spec : « … »), then faithful "
-            "French translation. Do not stack separate quote_fr blocks."
+            "Dans le chat, cite uniquement les morceaux des points marqués (quote_en du pack), "
+            "pas la clause entière. L'encadré markdown (blockquote) contient uniquement la spec "
+            "dans sa langue d'origine : « quote_en anglais » + métadonnées (doc, clause, lien). "
+            "Aucun français dans l'encadré — pas de « La spec : », pas de *Traduction :*. "
+            "Prose française et *Traduction :* toujours hors encadré."
+        )
+        format_md = (
+            "**[Verdict.]** [règle en prose française — hors encadré]\n"
+            "\n"
+            "> « [quote_en exact, anglais] »\n"
+            "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
+            "\n"
+            "*Traduction :* [traduction fidèle — hors encadré]\n"
+            "\n"
+            "> **Exception** *(si fournie)*\n"
+            ">\n"
+            "> [explication française — hors encadré de citation]\n"
+            ">\n"
+            "> > « [exception quote_en, anglais] »\n"
+            "> > (`[doc]` `[clause]`, informative|normative)\n"
+            ">\n"
+            "> *Traduction :* [traduction fidèle de l'exception]\n"
+            "\n"
+            "**Conclusion :** [phrase opérationnelle.]\n"
+            "\n"
+            "---\n"
+            "*recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} €*"
         )
     else:
-        citation_note = "Integrate one exact quote_en in the answer paragraph."
+        citation_note = (
+            "In chat, cite only the marked passage excerpts (pack quote_en), not the whole "
+            "clause. Markdown blockquote = original-language spec only (verbatim quote_en + "
+            "doc/clause/link). Explanation prose outside the blockquote."
+        )
+        format_md = (
+            "**[Verdict.]** [rule in one sentence — outside blockquote]\n"
+            "\n"
+            "> « [exact quote_en] »\n"
+            "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
+            "\n"
+            "> **Exception** *(if provided)*\n"
+            ">\n"
+            "> [condition explanation — outside citation blockquote]\n"
+            ">\n"
+            "> > « [exception quote_en] »\n"
+            "> > (`[doc]` `[clause]`, informative|normative)\n"
+            "\n"
+            "**Conclusion:** [one operational sentence.]\n"
+            "\n"
+            "---\n"
+            "*retrieval {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} €*"
+        )
     return {
         "shape": shape,
         "language": lang,
         "citation": citation_note,
+        "format_markdown": format_md,
         "prefer_sysml_over_kerml": analysis.get("prefer_sysml", True),
         "cite_kerml_only_when": (
             "user explicitly mentions KerML, or SysML has no applicable passage"

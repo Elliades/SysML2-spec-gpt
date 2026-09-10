@@ -13,36 +13,55 @@ When the user asks about SysML v2 or KerML language rules (names, namespaces, co
 
 Never paste large specification extracts into the chat. Never answer from memory. Prefer `spec_answer_pack` and **one primary passage** (a second only if the pack provides `exception`). Do not dump whole clauses.
 
+> ### Points marqués
+>
+> Dans le chat, cite **uniquement** les morceaux des **points marqués** — le `quote_en` du pack, soit l’extrait surligné dans le viewer PDF — **pas la clause entière**.
+>
+> - **1 point marqué** = 1 `quote_en` primary
+> - **+1 exception** seulement si le pack fournit `exception`
+
 ## Answer shape (closed / rule questions)
 
 Follow the pack `answer_contract.shape` in order:
 
 1. **Réponse** — one sentence (decision or definition).
-2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question. Then **one** integrated citation: `La spec : « [exact quote_en] » ([doc] [clause], informative|normative) — [session_url or reader_url]`. If answering in French, add a faithful translation immediately after; never replace the English quote.
+2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question (prose française, **hors** encadré). Puis **un encadré markdown** (blockquote `>`) contenant **uniquement** la spec dans sa langue d'origine : `« [exact quote_en] »` puis `([doc] [clause], informative|normative) — [session_url]`. Rien d'autre dans l'encadré — pas de « La spec : », pas de traduction. Après l'encadré : `*Traduction :* …` si la réponse est en français.
 3. **Exception** — only if the pack provides `exception`; at most one extra citation. Omit this section if `exception` is null.
 4. **Conclusion** — one operational sentence.
 5. **Coût** — `recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} € (input agent, index local gratuit)` using values from pack `cost`.
 
 Open questions (what / how): same order — definition first, then one integrated English citation. Never a pile of source blocks.
 
-```
-**Non.** [the rule in one sentence]
-
-La spec : « [exact short quote_en] » ([doc] [clause], informative|normative) — [session link].
-[Faithful French translation in the same paragraph or the next line.]
-
-Possible seulement si [condition] : [reason + at most one extra citation from exception].
-
-[Conclusion in one sentence.]
-
-recherche 42 ms · pack ~180 tokens · ~0.0005 € (input agent, index local gratuit)
-```
+> ### Modèle de réponse (encart)
+>
+> **Non.** [la règle en une phrase — prose française, hors encadré]
+>
+> > « [quote_en exact, anglais] »
+> > (`[doc]` `[clause]`, informative|normative) — [session link]
+>
+> *Traduction :* [traduction fidèle — **toujours hors** l'encadré]
+>
+> > **Exception** *(seulement si le pack fournit `exception`)*
+> >
+> > [explication française — hors encadré de citation]
+> >
+> > > « [exception quote_en, anglais] »
+> > > (`[doc]` `[clause]`, informative|normative)
+> >
+> > *Traduction :* [traduction fidèle de l'exception]
+>
+> **Conclusion :** [une phrase opérationnelle.]
+>
+> ---
+> *recherche 42 ms · pack ~180 tokens · ~0.0005 € (input agent, index local gratuit)*
 
 ## Citation rules
 
-- Use the exact English `quote_en` from the tool. Do not paraphrase it before showing it.
-- **Always show the original English quote in chat** (integrated in the rule paragraph, or as a short blockquote immediately after it), then the faithful French translation.
-- Integrate it in the paragraph (`La spec : « … »`). Do not open a heading per source.
+- Use the exact English `quote_en` from the tool (the marked passage / point marqué). Do not paraphrase it before showing it.
+- **L'encadré markdown (blockquote `>`) = spec dans la langue d'origine uniquement.** Contenu : `« quote_en »` + métadonnées (`doc`, `clause`, informative|normative, lien). Aucun français dans l'encadré — ni « La spec : », ni *Traduction :*, ni explication.
+- **Prose française et *Traduction :* toujours hors encadré**, sur les lignes qui précèdent ou suivent le blockquote.
+- One point marqué per cite : primary `quote_en`, plus exception `quote_en` only when the pack provides `exception`.
+- Exception : explication française dans le bloc Exception, puis sous-encadré `> >` avec le `quote_en` anglais seul, puis *Traduction :* hors sous-encadré.
 - Cite doc + clause + informative (typically cl. 7) or normative (cl. 8+).
 - Include the `session_url` (multi-cite) or `reader_url` (single cite) from the pack.
 - SysML first. KerML only if the user named KerML, or SysML has no applicable rule.
@@ -50,16 +69,28 @@ recherche 42 ms · pack ~180 tokens · ~0.0005 € (input agent, index local gra
 
 ## Bad vs good (inherited `^a` vs local `a`)
 
-**Bad:** several `quote_en` / `quote_fr` / `explanation_fr` blocks, then examples of when it “works”.
+> ### À éviter
+>
+> Plusieurs blocs `quote_en` / `quote_fr` / `explanation_fr`, puis des exemples de quand ça « marche ».
+>
+> Citation traduite dans l'encadré : `> « Toutes les appartenances… »` — **interdit**.
+>
+> Mélange dans l'encadré : `> La spec : « All memberships… »` + `*Traduction :* …` — **interdit** : l'encadré = anglais seul.
 
-**Good:**
-
-**Non.** A `partDef` cannot hold an inherited `partUsage` `^a` and a distinct local `partUsage` `a`: each name in a namespace identifies one member.
-
-La spec : « All memberships of a Namespace must be distinguishable from each other. » (`kerml-1.1` 8.3.2.4.5, normative) — [session link]. Toutes les appartenances d’un namespace doivent être distinguables.
-
-Possible seulement si le local redéfinit l’hérité (`:>>`) : the inherited feature is then replaced, so there is only one member `a`.
-
-Conclusion : déclarer un usage local `a` sans `:>>` sur l’hérité `^a` viole la distinguabilité des memberships.
-
-recherche 38 ms · pack ~165 tokens · ~0.0004 € (input agent, index local gratuit)
+> ### Bon exemple
+>
+> **Non.** Un `partDef` ne peut pas contenir à la fois un `partUsage` hérité `^a` et un `partUsage` local `a` distinct : chaque nom dans un namespace identifie un seul membre.
+>
+> > « All memberships of a Namespace must be distinguishable from each other. »
+> > (`kerml-1.1` `8.3.2.4.5`, normative) — [session link]
+>
+> *Traduction :* toutes les appartenances d’un namespace doivent être distinguables.
+>
+> > **Exception**
+> >
+> > Possible seulement si le local redéfinit l’hérité (`:>>`) : la feature héritée est alors remplacée, il n’y a plus qu’un seul membre `a`.
+>
+> **Conclusion :** déclarer un usage local `a` sans `:>>` sur l’hérité `^a` viole la distinguabilité des memberships.
+>
+> ---
+> *recherche 38 ms · pack ~165 tokens · ~0.0004 € (input agent, index local gratuit)*

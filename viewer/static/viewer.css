@@ -437,6 +437,33 @@ body.toc-resizing {
   border-radius: 3px;
   box-shadow: inset 0 -2px 0 rgba(94, 179, 255, 0.45);
 }
+
+/* Discrete citation highlights — one palette slot per session cite */
+.clause-body p.cite-para,
+.clause-body li.cite-para {
+  border-left: 3px solid transparent;
+  padding: 0.3rem 0.55rem 0.3rem 0.7rem;
+  margin-left: -0.2rem;
+  border-radius: 0 6px 6px 0;
+}
+.clause-body .cite-excerpt {
+  border-radius: 4px;
+  padding: 0.05em 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.clause-body .cite-para.cite-0,
+.clause-body .cite-excerpt.cite-0 { background: rgba(232, 184, 74, 0.14); border-left-color: rgba(232, 184, 74, 0.5); }
+.clause-body .cite-para.cite-1,
+.clause-body .cite-excerpt.cite-1 { background: rgba(94, 179, 255, 0.12); border-left-color: rgba(94, 179, 255, 0.45); }
+.clause-body .cite-para.cite-2,
+.clause-body .cite-excerpt.cite-2 { background: rgba(74, 222, 128, 0.1); border-left-color: rgba(74, 222, 128, 0.42); }
+.clause-body .cite-para.cite-3,
+.clause-body .cite-excerpt.cite-3 { background: rgba(180, 140, 255, 0.12); border-left-color: rgba(180, 140, 255, 0.45); }
+.clause-body .cite-para.cite-4,
+.clause-body .cite-excerpt.cite-4 { background: rgba(255, 140, 120, 0.1); border-left-color: rgba(255, 140, 120, 0.42); }
+.clause-body .cite-para.cite-5,
+.clause-body .cite-excerpt.cite-5 { background: rgba(120, 200, 180, 0.1); border-left-color: rgba(120, 200, 180, 0.42); }
 .clause-body a.clause-ref {
   color: var(--sysml);
   text-decoration: none;
@@ -493,6 +520,12 @@ body.toc-resizing {
 
 .card:hover { border-color: var(--accent); }
 .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.card.cite-0 { border-left: 3px solid rgba(232, 184, 74, 0.55); }
+.card.cite-1 { border-left: 3px solid rgba(94, 179, 255, 0.5); }
+.card.cite-2 { border-left: 3px solid rgba(74, 222, 128, 0.48); }
+.card.cite-3 { border-left: 3px solid rgba(180, 140, 255, 0.5); }
+.card.cite-4 { border-left: 3px solid rgba(255, 140, 120, 0.48); }
+.card.cite-5 { border-left: 3px solid rgba(120, 200, 180, 0.48); }
 
 .card-head {
   display: flex;
@@ -584,11 +617,15 @@ body.toc-resizing {
 }
 
 .pdf-hl .hl.cite-focus {
-  background: rgba(255, 196, 60, 0.22);
-  border: 2px solid rgba(255, 170, 0, 0.85);
+  background: rgba(232, 184, 74, 0.18);
+  border: 1px solid rgba(232, 184, 74, 0.55);
   border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
 }
+.pdf-hl .hl.cite-focus.cite-1 { background: rgba(94, 179, 255, 0.16); border-color: rgba(94, 179, 255, 0.5); }
+.pdf-hl .hl.cite-focus.cite-2 { background: rgba(74, 222, 128, 0.14); border-color: rgba(74, 222, 128, 0.48); }
+.pdf-hl .hl.cite-focus.cite-3 { background: rgba(180, 140, 255, 0.16); border-color: rgba(180, 140, 255, 0.5); }
+.pdf-hl .hl.cite-focus.cite-4 { background: rgba(255, 140, 120, 0.14); border-color: rgba(255, 140, 120, 0.48); }
+.pdf-hl .hl.cite-focus.cite-5 { background: rgba(120, 200, 180, 0.14); border-color: rgba(120, 200, 180, 0.48); }
 
 .toast {
   position: fixed;

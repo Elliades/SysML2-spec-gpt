@@ -49,6 +49,36 @@ def test_highlight_skips_code_blocks():
     assert "<mark" not in pre
 
 
+def test_highlight_cite_quotes_marks_passage():
+    html = render_clause_html(
+        "Intro text.\n\nEvery owned name in a Namespace must be unique.\n\nTail text.",
+        clause_id="7.2.5",
+        cite_quotes=[("Every owned name in a Namespace must be unique.", 0)],
+    )
+    assert "cite-para cite-0" in html or "cite-excerpt cite-0" in html
+    assert "unique" in html
+
+
+def test_highlight_cite_quotes_multiple_colors():
+    html = render_clause_html(
+        "First normative rule must hold.\n\nSecond normative rule shall apply.",
+        clause_id="1.1",
+        cite_quotes=[
+            ("First normative rule must hold.", 0),
+            ("Second normative rule shall apply.", 1),
+        ],
+    )
+    assert "cite-0" in html
+    assert "cite-1" in html
+
+
+def test_highlight_cite_quotes_skips_code_blocks():
+    html = render_clause_html(SAMPLE, clause_id="7.16.2", cite_quotes=[("flow def FuelFlow", 0)])
+    pre = html.split("<pre>")[1].split("</pre>")[0]
+    assert "cite-para" not in pre
+    assert "cite-excerpt" not in pre
+
+
 def test_linkify_clause_refs():
     html = render_clause_html(
         "See (see 7.13.2 ) and [KerML, 7.4.10] for details.",

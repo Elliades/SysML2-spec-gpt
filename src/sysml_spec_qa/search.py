@@ -41,10 +41,19 @@ class PassageHit:
     overlap_score: int = 0
 
     def viewer_url(self, query: str = "") -> str:
-        return viewer_link(self.doc_id, self.version, self.page_start, self.clause_id, query)
+        return viewer_link(
+            self.doc_id,
+            self.version,
+            self.page_start,
+            self.clause_id,
+            query,
+            quote=self.quote_en,
+        )
 
     def reader_url(self, query: str = "") -> str:
-        return reader_link(self.doc_id, self.version, self.clause_id, query)
+        return reader_link(
+            self.doc_id, self.version, self.clause_id, query, quote=self.quote_en
+        )
 
 
 @dataclass
@@ -64,11 +73,18 @@ class Hit:
 
     def viewer_url(self, query: str = "") -> str:
         return viewer_link(
-            self.doc_id, self.version, self.page_start, self.clause_id, query
+            self.doc_id,
+            self.version,
+            self.page_start,
+            self.clause_id,
+            query,
+            quote=self.excerpt,
         )
 
     def reader_url(self, query: str = "") -> str:
-        return reader_link(self.doc_id, self.version, self.clause_id, query)
+        return reader_link(
+            self.doc_id, self.version, self.clause_id, query, quote=self.excerpt
+        )
 
     def markdown_url(self, query: str = "") -> str:
         from .markdown import clause_md_url
@@ -76,10 +92,21 @@ class Hit:
         return clause_md_url(self.doc_id, self.version, self.clause_id, query)
 
 
-def reader_link(doc_id: str, version: str, clause_id: str, query: str = "") -> str:
+def reader_link(
+    doc_id: str,
+    version: str,
+    clause_id: str,
+    query: str = "",
+    quote: str = "",
+) -> str:
     url = f"{VIEWER_URL.rstrip('/')}/r/{doc_id}/{version}/{quote_plus(clause_id)}"
+    params: list[str] = []
     if query:
-        url += f"?q={quote_plus(query)}"
+        params.append(f"q={quote_plus(query)}")
+    if quote.strip():
+        params.append(f"quote={quote_plus(quote.strip())}")
+    if params:
+        url += "?" + "&".join(params)
     return url
 
 
@@ -89,10 +116,16 @@ def viewer_link(
     page: int,
     clause_id: str,
     query: str = "",
+    quote: str = "",
 ) -> str:
-    url = f"{VIEWER_URL.rstrip('/')}/v/{doc_id}/{version}?page={page}&clause={quote_plus(clause_id)}"
+    url = (
+        f"{VIEWER_URL.rstrip('/')}/v/{doc_id}/{version}"
+        f"?page={page}&clause={quote_plus(clause_id)}"
+    )
     if query:
         url += f"&q={quote_plus(query)}"
+    if quote.strip():
+        url += f"&quote={quote_plus(quote.strip())}"
     return url
 
 
