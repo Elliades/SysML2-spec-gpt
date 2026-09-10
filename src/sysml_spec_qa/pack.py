@@ -362,7 +362,7 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
             "**Conclusion :** [phrase opérationnelle.]\n"
             "\n"
             "---\n"
-            "*recherche {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} €*"
+            "*{footer_fr}*"
         )
     else:
         citation_note = (
@@ -386,7 +386,7 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
             "**Conclusion:** [one operational sentence.]\n"
             "\n"
             "---\n"
-            "*retrieval {retrieval_ms} ms · pack ~{pack_tokens} tokens · ~{estimated_eur} €*"
+            "*{footer_en}*"
         )
     return {
         "shape": shape,
@@ -403,11 +403,27 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
 
 def _pack_cost(token_est: int, retrieval_ms: int) -> dict:
     eur = round(token_est / 1_000_000 * EUR_PER_MTOK, 6)
+    footer_fr = (
+        f"recherche {retrieval_ms} ms · extraits spec ~{token_est} tok "
+        f"(quote_en des points marqués uniquement) · index local gratuit "
+        f"— hors tour Cursor/Composer"
+    )
+    footer_en = (
+        f"retrieval {retrieval_ms} ms · spec excerpts ~{token_est} tok "
+        f"(marked quote_en only) · local index free "
+        f"— excludes Cursor/Composer turn"
+    )
     return {
         "retrieval_ms": retrieval_ms,
         "pack_tokens": token_est,
+        "excerpt_tokens": token_est,
         "estimated_eur": eur,
-        "note": "input agent estimate; local index free",
+        "note": (
+            "excerpt_tokens counts primary/exception quote_en only; "
+            "not the full agent turn billed by Cursor"
+        ),
+        "footer_fr": footer_fr,
+        "footer_en": footer_en,
     }
 
 
