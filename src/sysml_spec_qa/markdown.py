@@ -11,7 +11,8 @@ import mistune
 from .config import DB_PATH, MD_DIR
 from .db import connect
 from .search import reader_link, viewer_link
-from .textutil import fold, parse_clause_title
+from .highlights import _quote_needles
+from .textutil import fold, parse_clause_title, word_count
 
 _md = mistune.create_markdown(escape=False, plugins=["strikethrough", "table"])
 
@@ -232,6 +233,124 @@ def _highlight_chunk(chunk: str, terms: list[str], budget: list[int]) -> str:
     return out
 
 
+CITE_PALETTE_SIZE = 6
+BLOCK_TAG_RE = re.compile(r"(<(p|li)([^>]*)>)([\s\S]*?)(</\2>)", re.I)
+TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _normalize_ws(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _strip_tags(fragment: str) -> str:
+    return TAG_RE.sub("", fragment)
+
+
+def _inject_class(open_tag: str, classes: str) -> str:
+    if 'class="' in open_tag:
+        return re.sub(
+            r'class="([^"]*)"',
+            lambda m: f'class="{m.group(1)} {classes}"',
+            open_tag,
+            count=1,
+        )
+    return open_tag[:-1] + f' class="{classes}">'
+
+
+def _quote_matches_text(plain: str, quote: str) -> bool:
+    hay = _normalize_ws(plain)
+    needle = _normalize_ws(quote)
+    if not needle:
+        return False
+    if needle in hay:
+        return True
+    for chunk in _quote_needles(quote, limit=3):
+        if _normalize_ws(chunk) in hay:
+            return True
+    return False
+
+
+def _flex_quote_pattern(quote: str) -> re.Pattern[str] | None:
+    words = [w for w in re.split(r"\s+", quote.strip()) if w]
+    if len(words) < 3:
+        return None
+    return re.compile(r"\s+".join(re.escape(w) for w in words), re.I)
+
+
+def _inline_wrap_quote(inner_html: str, quote: str, idx: int) -> str:
+    cite_class = f"cite-excerpt cite-{idx % CITE_PALETTE_SIZE}"
+    plain = _strip_tags(inner_html)
+    patterns: list[re.Pattern[str]] = []
+    flex = _flex_quote_pattern(quote)
+    if flex:
+        patterns.append(flex)
+    for chunk in _quote_needles(quote, limit=3):
+        flex = _flex_quote_pattern(chunk)
+        if flex:
+            patterns.append(flex)
+    for pattern in patterns:
+        match = pattern.search(plain)
+        if not match:
+            continue
+        snippet = match.group(0)
+        escaped = re.escape(snippet).replace(r"\ ", r"\s+")
+        wrapped = re.sub(
+            escaped,
+            lambda m: f'<span class="{cite_class}">{m.group(0)}</span>',
+            inner_html,
+            count=1,
+            flags=re.I,
+        )
+        if wrapped != inner_html:
+            return wrapped
+    return inner_html
+
+
+def _highlight_whole_para(plain: str, quote: str) -> bool:
+    if not _quote_matches_text(plain, quote):
+        return False
+    q_words = word_count(quote)
+    p_words = word_count(plain)
+    if p_words <= q_words + 10:
+        return True
+    return q_words >= max(12, int(p_words * 0.55))
+
+
+def highlight_cite_quotes(body_html: str, quotes: list[tuple[str, int]]) -> str:
+    """Mark cited passages with discrete per-cite background colors."""
+    if not quotes:
+        return body_html
+    parts = re.split(r"(<pre[\s\S]*?</pre>)", body_html, flags=re.I)
+    out: list[str] = []
+    for part in parts:
+        if part.lower().startswith("<pre"):
+            out.append(part)
+            continue
+        html = part
+        for quote, idx in quotes:
+            if not quote.strip():
+                continue
+            cite_class = f"cite-para cite-{idx % CITE_PALETTE_SIZE}"
+
+            def block_repl(m: re.Match[str]) -> str:
+                open_tag, _tag, _attrs, inner, close_tag = m.groups()
+                if "cite-para" in open_tag or "cite-excerpt" in inner:
+                    return m.group(0)
+                plain = _strip_tags(inner)
+                if not _quote_matches_text(plain, quote):
+                    return m.group(0)
+                if _highlight_whole_para(plain, quote):
+                    return _inject_class(open_tag, cite_class) + inner + close_tag
+                wrapped = _inline_wrap_quote(inner, quote, idx)
+                if wrapped != inner:
+                    return open_tag + wrapped + close_tag
+                return _inject_class(open_tag, cite_class) + inner + close_tag
+
+            html = BLOCK_TAG_RE.sub(block_repl, html)
+        out.append(html)
+    return "".join(out)
+
+
 def highlight_html(body_html: str, query: str) -> str:
     """Highlight whole-word search terms in prose only (never inside code blocks)."""
     if not query or not query.strip():
@@ -309,6 +428,7 @@ def render_clause_html(
     clause_id: str = "",
     doc_id: str = "",
     version: str = "2.0",
+    cite_quotes: list[tuple[str, int]] | None = None,
 ) -> str:
     body = prepare_clause_markdown(text)
     rendered = _md(body)
@@ -317,7 +437,10 @@ def render_clause_html(
         rendered = anchor + rendered
     if doc_id:
         rendered = linkify_clause_refs(rendered, doc_id, version)
-    return highlight_html(rendered, query)
+    rendered = highlight_html(rendered, query)
+    if cite_quotes:
+        rendered = highlight_cite_quotes(rendered, cite_quotes)
+    return rendered
 
 SAFE_RE = re.compile(r"[^a-z0-9]+")
 

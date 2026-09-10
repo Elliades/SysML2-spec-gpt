@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from pathlib import Path
@@ -177,6 +178,8 @@ def create_app() -> FastAPI:
         version: str = DEFAULT_VERSION,
         q: str = "",
         highlight: str = "",
+        quote: str = "",
+        quotes: str = "",
     ) -> dict:
         row = get_clause(clause, doc_id=doc, version=version)
         if not row:
@@ -193,6 +196,23 @@ def create_app() -> FastAPI:
         substantive = prepare_clause_markdown(markdown)
         if word_count(substantive) < max(8, word_count(db_body) // 3):
             markdown = f"# {row['title']}\n\n{db_body}"
+        cite_quotes: list[tuple[str, int]] = []
+        if quotes.strip():
+            try:
+                parsed = json.loads(quotes)
+                if isinstance(parsed, list):
+                    for item in parsed:
+                        if not isinstance(item, dict):
+                            continue
+                        text = str(item.get("quote") or "").strip()
+                        if not text:
+                            continue
+                        cite_quotes.append((text, int(item.get("index", 0))))
+            except json.JSONDecodeError:
+                pass
+        elif quote.strip():
+            cite_quotes.append((quote.strip(), 0))
+
         html_body = render_clause_html(
             markdown,
             query=highlight or "",
@@ -200,6 +220,7 @@ def create_app() -> FastAPI:
             clause_id=clause,
             doc_id=doc,
             version=version,
+            cite_quotes=cite_quotes,
         )
         return {
             "doc_id": doc,

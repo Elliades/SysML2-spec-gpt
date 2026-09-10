@@ -112,6 +112,24 @@ def test_api_toc_and_clause_html(tmp_path, monkeypatch):
     assert "unique" in body.lower() or "<mark>" in body
 
 
+def test_api_clause_html_highlights_quote(tmp_path, monkeypatch):
+    _setup_db(tmp_path, monkeypatch)
+    client = TestClient(create_app())
+    html = client.get(
+        "/api/clause_html",
+        params={
+            "doc": "kerml-1.0",
+            "version": "2.0",
+            "clause": "7.2.5",
+            "quote": "Every owned name in a Namespace must be unique.",
+        },
+    )
+    assert html.status_code == 200
+    body = html.json()["html"]
+    assert "cite-0" in body
+    assert "unique" in body.lower()
+
+
 def test_api_cites(tmp_path, monkeypatch):
     _setup_db(tmp_path, monkeypatch)
     client = TestClient(create_app())

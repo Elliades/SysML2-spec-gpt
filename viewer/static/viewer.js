@@ -9,6 +9,7 @@ const TOC_MIN_W = 160;
 const TOC_MAX_W = 480;
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs";
 const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs";
+const CITE_PALETTE_SIZE = 6;
 
 const state = {
   docs: [],
@@ -277,6 +278,50 @@ function setReaderState(which) {
   els.clauseBody.hidden = which !== "content";
 }
 
+function citePaletteClass(index) {
+  return `cite-${((index % CITE_PALETTE_SIZE) + CITE_PALETTE_SIZE) % CITE_PALETTE_SIZE}`;
+}
+
+function collectCiteQuotesForClause() {
+  const out = [];
+  if (state.mode === "cites" && state.sessionItems.length) {
+    state.sessionItems.forEach((item, i) => {
+      if (
+        item.doc_id === state.docId
+        && item.clause_id === state.clauseId
+        && item.quote_en
+      ) {
+        out.push({ quote: item.quote_en, index: i });
+      }
+    });
+  }
+  if (!out.length && state.activeQuote) {
+    out.push({ quote: state.activeQuote, index: 0 });
+  }
+  if (!out.length && state.mode === "search" && state.searchHits.length) {
+    const hit = state.searchHits.find(
+      (h) => h.doc_id === state.docId && h.clause_id === state.clauseId
+    );
+    if (hit?.quote_en) out.push({ quote: hit.quote_en, index: 0 });
+  }
+  return out;
+}
+
+function activeCiteIndex() {
+  if (state.mode === "cites" && state.sessionItems.length) {
+    return state.sessionIndex;
+  }
+  return 0;
+}
+
+function scrollToCiteHighlight() {
+  const activeIdx = activeCiteIndex();
+  const activeClass = citePaletteClass(activeIdx);
+  const focus = els.clauseBody.querySelector(`.cite-para.${activeClass}, .cite-excerpt.${activeClass}`)
+    || els.clauseBody.querySelector(".cite-para, .cite-excerpt");
+  if (focus) focus.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 async function openClause(clauseId, { push = false, addToSession = false } = {}) {
   state.clauseId = clauseId;
   state.mode = state.session.length ? "cites" : "read";
@@ -295,8 +340,13 @@ async function openClause(clauseId, { push = false, addToSession = false } = {})
     if (state.mode === "search" && state.query) {
       params.set("highlight", state.query);
     }
+    const citeQuotes = collectCiteQuotesForClause();
+    if (citeQuotes.length) {
+      params.set("quotes", JSON.stringify(citeQuotes));
+    }
     const data = await api(`/api/clause_html?${params}`);
     els.clauseBody.innerHTML = data.html;
+    scrollToCiteHighlight();
     renderReaderMeta(data);
     renderBreadcrumb();
     renderToc({ scrollToActive: true });
@@ -335,18 +385,21 @@ function renderCiteRail() {
   els.citeRail.innerHTML = state.session.map((ref, i) => {
     const [doc, ver, clause] = ref.split(":");
     const active = i === state.sessionIndex;
-    return `<div class="card${active ? " active" : ""}" data-idx="${i}" data-doc="${doc}" data-ver="${ver}" data-clause="${clause}">
+    const item = state.sessionItems[i];
+    const quote = item?.quote_en ? `<div class="card-quote">${escapeHtml(item.quote_en.slice(0, 220))}</div>` : "";
+    return `<div class="card ${citePaletteClass(i)}${active ? " active" : ""}" data-idx="${i}" data-doc="${doc}" data-ver="${ver}" data-clause="${clause}">
       <div class="card-head">
         <span class="chip ${docFamily(doc)}">${doc}</span>
         <span class="card-title">${clause}</span>
       </div>
+      ${quote}
     </div>`;
   }).join("");
   bindSessionCards();
 }
 
 function cardHtml(h, i, active) {
-  return `<div class="card${active ? " active" : ""}" data-i="${i}" data-doc="${h.doc_id}" data-ver="${h.version}" data-clause="${h.clause_id}">
+  return `<div class="card ${citePaletteClass(i)}${active ? " active" : ""}" data-i="${i}" data-doc="${h.doc_id}" data-ver="${h.version}" data-clause="${h.clause_id}">
     <div class="card-head">
       <span class="chip ${docFamily(h.doc_id)}">${h.doc_id}</span>
       <span class="card-title">${h.clause_id}</span>
@@ -436,7 +489,7 @@ async function loadSessionFromApi() {
       await openClause(state.clauseId);
       els.citeRail.innerHTML = items.map((it, i) => {
         const active = i === idx;
-        return `<div class="card${active ? " active" : ""}" data-idx="${i}" data-doc="${it.doc_id}" data-ver="${it.version}" data-clause="${it.clause_id}">
+        return `<div class="card ${citePaletteClass(i)}${active ? " active" : ""}" data-idx="${i}" data-doc="${it.doc_id}" data-ver="${it.version}" data-clause="${it.clause_id}">
           <div class="card-head">
             <span class="chip ${docFamily(it.doc_id)}">${it.doc_id}</span>
             <span class="card-title">${it.clause_id}</span>
@@ -643,7 +696,7 @@ async function renderPdfPage(pdfjs) {
     for (const box of hl.bboxes || []) {
       if (box.page !== state.pdfPage) continue;
       const div = document.createElement("div");
-      div.className = "hl cite-focus";
+      div.className = `hl cite-focus ${citePaletteClass(activeCiteIndex())}`;
       const x0 = box.x0 * scale;
       const y0 = viewport.height - box.y1 * scale;
       div.style.left = x0 + "px";
