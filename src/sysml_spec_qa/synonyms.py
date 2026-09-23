@@ -12,6 +12,11 @@ PHRASES: list[tuple[str, list[str]]] = [
     ("nom unique", ["unique", "name", "namespace"]),
     ("binding connector", ["bindingconnector", "connector"]),
     ("connection usage", ["connectionusage", "connector"]),
+    ("between two definition", ["subclassification", "specializes", "subsetting"]),
+    ("entre deux definition", ["subclassification", "specializes", "subsetting"]),
+    ("dans un state", ["state", "entry", "exit", "substate", "transition"]),
+    ("in a state", ["state", "entry", "exit", "substate", "transition"]),
+    ("mis dans", ["declared", "body", "contained"]),
 ]
 
 STOPWORDS = {
@@ -66,6 +71,9 @@ WORD_MAP: dict[str, list[str]] = {
     "multiplicité": ["multiplicity"],
     "heritage": ["subclassification", "specialization"],
     "héritage": ["subclassification", "specialization"],
+    "subsetting": ["subsetting", "subsets", "subsetted", "subclassification"],
+    "subsets": ["subsetting", "subsets"],
+    "subclassification": ["subclassification", "specializes"],
     "package": ["package", "namespace"],
     "definition": ["definition"],
     "usage": ["usage"],

@@ -27,6 +27,15 @@ def wants_kerml(question: str) -> bool:
 
 INTENT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("example", re.compile(r"\b(exemple|example|sample|listing)\b", re.I)),
+    ("inventory", re.compile(
+        r"\b(quels? sont|quelles? sont|what are|what can|elements?|éléments?|"
+        r"membres?|contenu|contained|mis dans|put (?:in|into))\b",
+        re.I,
+    )),
+    ("closed", re.compile(
+        r"\b(est-ce que|puis-je|peux-je|can i|may i|is it|does a|does the)\b",
+        re.I,
+    )),
     ("can_connect", re.compile(r"\b(connect|connecter|connection|connexion|connecter)\b", re.I)),
     ("name_resolution", re.compile(r"\b(unique|unicit|unicit[eé]|name|nom|noms|namespace|qualified)\b", re.I)),
     ("constraint", re.compile(r"\b(constraint|contrainte|validate|check)\b", re.I)),
@@ -82,10 +91,17 @@ def analyze_query(question: str) -> dict:
         seen.add(key)
         canonical.append(t)
     explicit_kerml = wants_kerml(question)
+    if "closed" in intents:
+        answer_kind = "verdict"
+    elif "inventory" in intents:
+        answer_kind = "list"
+    else:
+        answer_kind = "verdict"
     return {
         "language": language,
         "intents": intents,
         "terms": canonical,
+        "answer_kind": answer_kind,
         "wants_examples": "example" in intents,
         "wants_normative": any(i in intents for i in ("constraint", "syntax", "can_connect", "name_resolution")),
         "wants_kerml": explicit_kerml,

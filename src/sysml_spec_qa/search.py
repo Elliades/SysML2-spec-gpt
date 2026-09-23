@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,11 @@ from .db import connect
 from .query import analyze_query
 from .synonyms import expand_query
 from .textutil import cite_sentence, excerpt, fold, fts_query, word_count
+
+EXCEPTION_HINT = re.compile(
+    r"\b(except|exception|unless|however|provided that|not required)\b",
+    re.I,
+)
 
 
 @dataclass
@@ -364,9 +370,12 @@ def find_exception_passage(
             return exc
 
     for hit in other_hits:
-        if (hit.doc_id, hit.clause_id) != primary_key:
-            if primary.doc_id.startswith("sysml-") and hit.doc_id.startswith("kerml-"):
-                continue
+        if (hit.doc_id, hit.clause_id) == primary_key:
+            continue
+        if primary.doc_id.startswith("sysml-") and hit.doc_id.startswith("kerml-"):
+            continue
+        blob = f"{hit.title}\n{hit.quote_en}"
+        if EXCEPTION_HINT.search(blob):
             return hit
 
     conn = _conn(db_path)
@@ -380,6 +389,9 @@ def find_exception_passage(
             (version, primary.doc_id, primary.clause_id),
         ).fetchall()
         for xref in xrefs:
+            blob = xref["context"] or ""
+            if not EXCEPTION_HINT.search(blob):
+                continue
             target = xref["target_clause_id"]
             for hit in other_hits:
                 if hit.clause_id == target:
@@ -405,6 +417,8 @@ def find_exception_passage(
                     bboxes=row.get("bboxes") or [],
                 )
 
+        if "constraint" not in intents:
+            return None
         analysis = analyze_query(query)
         for term in analysis["terms"]:
             rows = conn.execute(

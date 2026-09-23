@@ -29,14 +29,16 @@ def _quote_needles(quote: str, limit: int = 4) -> list[str]:
         return []
     words = quote.split()
     needles: list[str] = []
-    if len(words) <= 10:
+    if len(quote) <= 400:
         needles.append(quote)
-    else:
-        step = max(6, len(words) // 3)
-        for start in range(0, min(len(words), 48), step):
-            chunk = " ".join(words[start : start + 10])
-            if len(chunk) >= 12:
+    if len(words) > 24:
+        step = max(12, len(words) // 3)
+        for start in range(0, min(len(words), 60), step):
+            chunk = " ".join(words[start : start + 24])
+            if len(chunk) >= 20:
                 needles.append(chunk)
+    elif len(words) > 10 and quote not in needles:
+        needles.append(quote)
     seen: set[str] = set()
     out: list[str] = []
     for needle in needles:
@@ -44,7 +46,7 @@ def _quote_needles(quote: str, limit: int = 4) -> list[str]:
         if key in seen:
             continue
         seen.add(key)
-        out.append(needle[:140])
+        out.append(needle[:400])
         if len(out) >= limit:
             break
     return out

@@ -11,7 +11,9 @@ When the user asks about SysML v2 or KerML language rules (names, namespaces, co
 2. `spec_answer_pack` for all natural-language questions (preferred)
 3. `spec_examples` only when the user asks for SysML language examples
 
-Never paste large specification extracts into the chat. Never answer from memory. Prefer `spec_answer_pack` and **one primary passage** (a second only if the pack provides `exception`). Do not dump whole clauses.
+**Stop after that one call.** Do not retry with a rephrased question. Do not call `spec_search`, `spec_get`, `spec_clause_pack`, or `spec_element` as a follow-up. Do not Read/Grep `data/md/`. If `quote_en` looks short or imperfect, still answer from it — that is a pack bug, not a reason to explore. Inspect `spec_answer_pack` schema at most once, then invoke it.
+
+Never paste large specification extracts into the chat. Never answer from memory. Prefer `spec_answer_pack` and **one primary passage** (a second only if the pack provides `exception` that is not null). Do not dump whole clauses. If `exception` is `null`, omit the Exception section.
 
 > ### Points marqués
 >
@@ -20,19 +22,24 @@ Never paste large specification extracts into the chat. Never answer from memory
 > - **1 point marqué** = 1 `quote_en` primary
 > - **+1 exception** seulement si le pack fournit `exception`
 
-## Answer shape (closed / rule questions)
+## Answer shape
 
-Follow the pack `answer_contract.shape` in order:
+Follow the pack `answer_contract.shape` and `answer_contract.kind`:
 
-1. **Réponse** — one sentence (decision or definition).
-2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question (prose française, **hors** encadré). Puis **un encadré markdown** (blockquote `>`) contenant **uniquement** la spec dans sa langue d'origine : `« [exact quote_en] »` puis `([doc] [clause], informative|normative) — [session_url]`. Rien d'autre dans l'encadré — pas de « La spec : », pas de traduction. Après l'encadré : `*Traduction :* …` si la réponse est en français.
+- `kind: verdict` (oui/non, « est-ce que ») — one decision sentence. Never invent Oui/Non for a list question.
+- `kind: list` (quels sont, what are, éléments, contenu) — **lead with a bullet list**. One intro sentence, then `-` items. Do not start with Oui/Non.
+
+Then:
+
+1. **Réponse** — verdict *or* liste à puces (selon `kind`).
+2. **Règle** — 2–4 sentences explaining how the rule applies to *this* question (prose française, **hors** encadré). Puis **un encadré markdown** (blockquote `>`) contenant **uniquement** la spec dans sa langue d'origine : `« [exact quote_en] »` puis `([doc] [clause], informative|normative) — [session_url]`. Rien d'autre dans l'encadré — pas de « La spec : », pas de traduction. Après l'encadré : `*Traduction :* …` si la réponse est en français. Si `quote_en` est un exemple de code ou un en-tête de page, cite-le quand même mais dérive les puces de la phrase utile, pas du listing.
 3. **Exception** — only if the pack provides `exception`; at most one extra citation. Omit this section if `exception` is null.
 4. **Conclusion** — one operational sentence.
 5. **Coût** — copier tel quel `cost.footer_fr` (réponse en français) ou `cost.footer_en` (réponse en anglais), en italique. Ce pied de page mesure **uniquement** les extraits `quote_en` du pack, pas l’usage Cursor/Composer du tour.
 
-Open questions (what / how): same order — definition first, then one integrated English citation. Never a pile of source blocks.
+Never a pile of source blocks.
 
-> ### Modèle de réponse (encart)
+> ### Modèle fermé (encart)
 >
 > **Non.** [la règle en une phrase — prose française, hors encadré]
 >
@@ -94,3 +101,18 @@ Open questions (what / how): same order — definition first, then one integrate
 >
 > ---
 > *recherche 38 ms · extraits spec ~165 tok (quote_en des points marqués uniquement) · index local gratuit — hors tour Cursor/Composer*
+
+> ### Modèle inventaire (liste)
+>
+> Un `state` peut contenir :
+>
+> - `entry action` / `do action` / `exit action` — au plus une de chaque
+> - state usages imbriqués (exclusifs, ou concurrents si `parallel`)
+> - `transition` usages entre sous-états (pas entre états parallèles)
+>
+> > « [quote_en exact] »
+> > (`sysml-2.0-language` `7.18.2`, informative) — [session link]
+>
+> *Traduction :* …
+>
+> **Conclusion :** déclarer le contenu du state avec ces membres, pas un verdict oui/non.

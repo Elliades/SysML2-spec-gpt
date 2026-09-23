@@ -24,16 +24,11 @@ from .search import (
     search_passages,
     search_passages_ranked,
 )
-from .textutil import cite_sentence, estimate_tokens, fold, word_count
+from .textutil import cite_sentence, estimate_tokens, fit_quote, fold, word_count
 
 
 def _trim_quote(quote: str, max_words: int = MAX_EXCERPT_WORDS) -> str:
-    from .textutil import WORD_RE
-
-    words = WORD_RE.findall(quote)
-    if len(words) <= max_words:
-        return quote.strip()
-    return " ".join(words[:max_words]).strip() + " …"
+    return fit_quote(quote, max_words)
 
 
 @dataclass
@@ -330,7 +325,11 @@ def _maybe_sysml_constraint_primary(primary_hit, analysis: dict, question: str, 
 
 
 def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
-    shape = ["verdict", "rule", "conclusion", "cost"]
+    kind = analysis.get("answer_kind") or "verdict"
+    if kind == "list":
+        shape = ["list", "rule", "conclusion", "cost"]
+    else:
+        shape = ["verdict", "rule", "conclusion", "cost"]
     if has_exception:
         shape.insert(2, "exception")
     lang = analysis["language"]
@@ -342,54 +341,94 @@ def _build_answer_contract(analysis: dict, has_exception: bool) -> dict:
             "Aucun français dans l'encadré — pas de « La spec : », pas de *Traduction :*. "
             "Prose française et *Traduction :* toujours hors encadré."
         )
-        format_md = (
-            "**[Verdict.]** [règle en prose française — hors encadré]\n"
-            "\n"
-            "> « [quote_en exact, anglais] »\n"
-            "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
-            "\n"
-            "*Traduction :* [traduction fidèle — hors encadré]\n"
-            "\n"
-            "> **Exception** *(si fournie)*\n"
-            ">\n"
-            "> [explication française — hors encadré de citation]\n"
-            ">\n"
-            "> > « [exception quote_en, anglais] »\n"
-            "> > (`[doc]` `[clause]`, informative|normative)\n"
-            ">\n"
-            "> *Traduction :* [traduction fidèle de l'exception]\n"
-            "\n"
-            "**Conclusion :** [phrase opérationnelle.]\n"
-            "\n"
-            "---\n"
-            "*{footer_fr}*"
-        )
+        if kind == "list":
+            citation_note += (
+                " Question d'inventaire : ouvrir par une liste à puces dérivée du quote_en. "
+                "Ne pas commencer par Oui/Non."
+            )
+            format_md = (
+                "**[Éléments.]** [une phrase d'intro — hors encadré]\n"
+                "\n"
+                "- `item` — [rôle]\n"
+                "- `item` — [rôle]\n"
+                "\n"
+                "> « [quote_en exact, anglais] »\n"
+                "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
+                "\n"
+                "*Traduction :* [traduction fidèle — hors encadré]\n"
+                "\n"
+                "**Conclusion :** [phrase opérationnelle.]\n"
+                "\n"
+                "---\n"
+                "*{footer_fr}*"
+            )
+        else:
+            format_md = (
+                "**[Verdict.]** [règle en prose française — hors encadré]\n"
+                "\n"
+                "> « [quote_en exact, anglais] »\n"
+                "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
+                "\n"
+                "*Traduction :* [traduction fidèle — hors encadré]\n"
+                "\n"
+                "> **Exception** *(si fournie)*\n"
+                ">\n"
+                "> [explication française — hors encadré de citation]\n"
+                ">\n"
+                "> > « [exception quote_en, anglais] »\n"
+                "> > (`[doc]` `[clause]`, informative|normative)\n"
+                ">\n"
+                "> *Traduction :* [traduction fidèle de l'exception]\n"
+                "\n"
+                "**Conclusion :** [phrase opérationnelle.]\n"
+                "\n"
+                "---\n"
+                "*{footer_fr}*"
+            )
     else:
         citation_note = (
             "In chat, cite only the marked passage excerpts (pack quote_en), not the whole "
             "clause. Markdown blockquote = original-language spec only (verbatim quote_en + "
             "doc/clause/link). Explanation prose outside the blockquote."
         )
-        format_md = (
-            "**[Verdict.]** [rule in one sentence — outside blockquote]\n"
-            "\n"
-            "> « [exact quote_en] »\n"
-            "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
-            "\n"
-            "> **Exception** *(if provided)*\n"
-            ">\n"
-            "> [condition explanation — outside citation blockquote]\n"
-            ">\n"
-            "> > « [exception quote_en] »\n"
-            "> > (`[doc]` `[clause]`, informative|normative)\n"
-            "\n"
-            "**Conclusion:** [one operational sentence.]\n"
-            "\n"
-            "---\n"
-            "*{footer_en}*"
-        )
+        if kind == "list":
+            citation_note += " Inventory question: lead with a bullet list. Do not start with Yes/No."
+            format_md = (
+                "**[Elements.]** [one intro sentence — outside blockquote]\n"
+                "\n"
+                "- `item` — [role]\n"
+                "- `item` — [role]\n"
+                "\n"
+                "> « [exact quote_en] »\n"
+                "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
+                "\n"
+                "**Conclusion:** [one operational sentence.]\n"
+                "\n"
+                "---\n"
+                "*{footer_en}*"
+            )
+        else:
+            format_md = (
+                "**[Verdict.]** [rule in one sentence — outside blockquote]\n"
+                "\n"
+                "> « [exact quote_en] »\n"
+                "> (`[doc]` `[clause]`, informative|normative) — [session_url]\n"
+                "\n"
+                "> **Exception** *(if provided)*\n"
+                ">\n"
+                "> [condition explanation — outside citation blockquote]\n"
+                ">\n"
+                "> > « [exception quote_en] »\n"
+                "> > (`[doc]` `[clause]`, informative|normative)\n"
+                "\n"
+                "**Conclusion:** [one operational sentence.]\n"
+                "\n"
+                "---\n"
+                "*{footer_en}*"
+            )
     return {
         "shape": shape,
+        "kind": kind,
         "language": lang,
         "citation": citation_note,
         "format_markdown": format_md,
@@ -453,23 +492,24 @@ def answer_pack(
         primary_hit = _refine_quote(primary_hit, analysis, db_path)
         primary_hit.quote_en = _trim_quote(primary_hit.quote_en)
         primary_ref = _passage_to_cite(_hit_to_row(primary_hit), primary_hit.quote_en, question)
-        exc_hit = find_exception_passage(
-            primary_hit,
-            ranked[1:],
-            question,
-            version=version,
-            db_path=db_path,
-        )
-        if exc_hit:
-            exc_hit = _refine_quote(exc_hit, analysis, db_path)
-            exc_hit.quote_en = _trim_quote(exc_hit.quote_en)
-            exception_ref = _passage_to_cite(_hit_to_row(exc_hit), exc_hit.quote_en, question)
-        elif "constraint" in analysis.get("intents", []):
-            pinned = _constraint_pinned_hit(question, version, analysis, db_path)
-            if pinned and pinned.doc_id.startswith("kerml-"):
-                pinned = _refine_quote(pinned, analysis, db_path)
-                pinned.quote_en = _trim_quote(pinned.quote_en)
-                exception_ref = _passage_to_cite(_hit_to_row(pinned), pinned.quote_en, question)
+        if analysis.get("answer_kind") != "list":
+            exc_hit = find_exception_passage(
+                primary_hit,
+                ranked[1:],
+                question,
+                version=version,
+                db_path=db_path,
+            )
+            if exc_hit:
+                exc_hit = _refine_quote(exc_hit, analysis, db_path)
+                exc_hit.quote_en = _trim_quote(exc_hit.quote_en)
+                exception_ref = _passage_to_cite(_hit_to_row(exc_hit), exc_hit.quote_en, question)
+            elif "constraint" in analysis.get("intents", []):
+                pinned = _constraint_pinned_hit(question, version, analysis, db_path)
+                if pinned and pinned.doc_id.startswith("kerml-"):
+                    pinned = _refine_quote(pinned, analysis, db_path)
+                    pinned.quote_en = _trim_quote(pinned.quote_en)
+                    exception_ref = _passage_to_cite(_hit_to_row(pinned), pinned.quote_en, question)
 
     examples: list[ExampleRef] = []
     if include_examples:

@@ -121,7 +121,34 @@ def spec_answer_pack(
         pack = answer_pack(question, version=version, k=k, include_examples=include_examples)
     except FileNotFoundError as exc:
         return str(exc)
-    return json.dumps(pack.to_dict(), indent=2, ensure_ascii=False)
+    return json.dumps(_compact_pack(pack.to_dict()), indent=2, ensure_ascii=False)
+
+
+def _compact_pack(data: dict[str, Any]) -> dict[str, Any]:
+    """Drop the chat template already present in the Cursor rule — saves tokens."""
+    contract = data.get("answer_contract") or {}
+    kind = contract.get("kind") or "verdict"
+    if kind == "list":
+        citation = (
+            "Inventory question: lead with a bullet list derived from quote_en. "
+            "Do not start with Oui/Non. Then one original-language blockquote. "
+            "Omit Exception if exception is null. Copy cost.footer_fr / footer_en."
+        )
+    else:
+        citation = (
+            "Cite only pack quote_en verbatim in the original-language blockquote. "
+            "Omit Exception if exception is null. Copy cost.footer_fr / footer_en."
+        )
+    data["answer_contract"] = {
+        "shape": contract.get("shape"),
+        "kind": kind,
+        "language": contract.get("language"),
+        "prefer_sysml_over_kerml": contract.get("prefer_sysml_over_kerml"),
+        "cite_kerml_only_when": contract.get("cite_kerml_only_when"),
+        "include_examples_only_when_asked": True,
+        "citation": citation,
+    }
+    return data
 
 
 def spec_clause_pack(
@@ -170,11 +197,14 @@ def main() -> None:
             "sysml-2.x-language first; use kerml-* only when the user explicitly mentions "
             "KerML or SysML has no applicable passage. Prefer spec_element for named "
             "metaclasses, spec_answer_pack for questions, spec_clause_pack when clause ids "
-            "are known. Always include session_url / reader_url links. Keep answers short. "
-            "Follow answer_contract.shape (verdict, rule, exception?, conclusion, cost). "
-            "In chat, cite only marked passage excerpts (quote_en), not whole clauses. "
-            "Markdown blockquote = original-language spec only (verbatim quote_en + doc/clause/link). "
-            "No French inside the blockquote. French prose and *Traduction :* always outside."
+            "are known. Call spec_answer_pack once; do not follow up with spec_search, "
+            "spec_get, spec_clause_pack, or markdown files. Answer from that pack even if "
+            "quote_en is imperfect. Always include session_url / reader_url links. Keep "
+            "answers short. Follow answer_contract.shape (verdict, rule, exception?, "
+            "conclusion, cost). Omit Exception when exception is null. In chat, cite only "
+            "marked passage excerpts (quote_en), not whole clauses. Markdown blockquote = "
+            "original-language spec only (verbatim quote_en + doc/clause/link). No French "
+            "inside the blockquote. French prose and *Traduction :* always outside."
         ),
     )
     _attach_tools(mcp)

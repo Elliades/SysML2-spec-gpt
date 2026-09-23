@@ -1,4 +1,13 @@
-from sysml_spec_qa.highlights import focus_bboxes, focus_quote
+from sysml_spec_qa.highlights import _quote_needles, focus_bboxes, focus_quote
+
+
+def test_quote_needles_prefer_full_sentence():
+    quote = (
+        "The definitions given must be consistent with the kind of usage being defined."
+    )
+    needles = _quote_needles(quote)
+    assert needles[0] == quote
+    assert all(len(n.split()) != 10 or n == quote for n in needles)
 
 
 def test_focus_quote_prefers_passed_quote():

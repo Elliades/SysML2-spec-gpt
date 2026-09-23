@@ -12,7 +12,18 @@ CONSTRAINT_RE = re.compile(r"\b((?:check|validate|derive)[A-Z][A-Za-z0-9]+)\b")
 CONSTRAINT_NAME_LINE_RE = re.compile(r"^(?:validate|check|derive)[A-Z]")
 NORMATIVE_LINE_RE = re.compile(r"\b(must|shall)\b", re.I)
 
-WORD_RE = re.compile(r"[A-Za-z0-9_]+")
+WORD_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9_]+")
+PDF_HEADER_RE = re.compile(
+    r"^(?:Systems Modeling Language\b.*|Part\s+\d+\s*$|\d{1,4}\s*$)$",
+    re.I,
+)
+CODEISH_RE = re.compile(
+    r"^\s*(?:abstract\s+|ref\s+)?(?:state|part|item|action|attribute|package)\s+(?:def\s+)?"
+    r"|^\s*(?:entry|do|exit|then)\s+action\b"
+    r"|^\s*[{}]\s*$"
+    r"|:=",
+    re.I,
+)
 
 HEADER_Y_RATIO = 0.045
 FOOTER_Y_RATIO = 0.045
@@ -89,16 +100,67 @@ def is_normative(clause_id: str | None, title: str) -> bool:
 
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"(])")
+LIST_NUM_RE = re.compile(r"^\d+\.$")
+SENTENCE_END_RE = re.compile(r'[.!?]["\')\]]*$')
+
+
+def unwrap_pdf_lines(text: str) -> str:
+    """Join PDF wrap lines so a sentence is not cut after 'being\\ndefined.'"""
+    raw = [
+        ln.strip()
+        for ln in text.splitlines()
+        if ln.strip() and not PDF_HEADER_RE.match(ln.strip())
+    ]
+    if not raw:
+        return ""
+    buf: list[str] = [raw[0]]
+    for ln in raw[1:]:
+        prev = buf[-1]
+        if CONSTRAINT_NAME_LINE_RE.match(prev) or CONSTRAINT_NAME_LINE_RE.match(ln):
+            buf.append(ln)
+            continue
+        if LIST_NUM_RE.match(prev):
+            buf[-1] = f"{prev} {ln}"
+            continue
+        if LIST_NUM_RE.match(ln):
+            buf.append(ln)
+            continue
+        if SENTENCE_END_RE.search(prev):
+            buf.append(ln)
+            continue
+        if CODEISH_RE.search(prev) or CODEISH_RE.search(ln):
+            buf.append(ln)
+            continue
+        buf[-1] = f"{prev} {ln}"
+    return "\n".join(buf)
 
 
 def _sentences(text: str) -> list[str]:
-    parts = SENTENCE_RE.split(text.strip())
-    out = [p.strip() for p in parts if p.strip()]
-    if len(out) <= 2 and word_count(text) > 80:
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip() and word_count(ln) >= 6]
-        if len(lines) > len(out):
-            return lines
-    return out
+    joined = unwrap_pdf_lines(text)
+    prose = [
+        ln.strip()
+        for ln in joined.splitlines()
+        if ln.strip() and not CODEISH_RE.search(ln)
+    ]
+    parts = SENTENCE_RE.split(" ".join(prose).strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def fit_quote(quote: str, max_words: int) -> str:
+    """Trim to max_words without cutting inside a sentence when possible."""
+    quote = " ".join(quote.split())
+    if not quote:
+        return ""
+    if word_count(quote) <= max_words:
+        return quote
+    words = quote.split()
+    clipped = " ".join(words[:max_words])
+    punct = list(re.finditer(r"[.!?]", clipped))
+    if punct:
+        end = punct[-1].end()
+        if end >= 24:
+            return clipped[:end].strip()
+    return clipped.strip() + " …"
 
 
 def _line_score(line: str, query_terms: list[str]) -> int:
@@ -117,13 +179,15 @@ def normative_line_quote(
     text: str, query_terms: list[str], max_words: int = 80
 ) -> str | None:
     """Pick a short normative line (constraint English sentence) when present."""
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    lines = [ln.strip() for ln in unwrap_pdf_lines(text).splitlines() if ln.strip()]
     best_line: str | None = None
     best_score = 0
     for idx, line in enumerate(lines):
         if CONSTRAINT_NAME_LINE_RE.match(line):
             for nxt in lines[idx + 1 : idx + 4]:
                 if not NORMATIVE_LINE_RE.search(nxt):
+                    continue
+                if not SENTENCE_END_RE.search(nxt):
                     continue
                 if word_count(nxt) > max_words:
                     continue
@@ -132,6 +196,8 @@ def normative_line_quote(
                     best_score = score
                     best_line = nxt
         if not NORMATIVE_LINE_RE.search(line) or word_count(line) > max_words:
+            continue
+        if not SENTENCE_END_RE.search(line):
             continue
         score = _line_score(line, query_terms)
         if score > best_score:
@@ -157,6 +223,17 @@ def _sentence_score(sent: str, query_terms: list[str]) -> int:
     for key in ("distinguishable", "unique", "uniqueness", "membership", "validate", "check"):
         if key in hay:
             score += 6
+    qfold = " ".join(fold(t) for t in query_terms)
+    if "subset" in qfold and any(k in hay for k in ("subsetting", "subsets", "subsetted")):
+        score += 14
+    if "subset" in qfold and any(k in hay for k in ("subclassification", "specializes")):
+        score += 8
+    if any(k in hay for k in ("can be declared", "may hierarchically contain", "in the body")):
+        score += 10
+    if PDF_HEADER_RE.match(sent.strip()) or "systems modeling language" in hay:
+        score -= 40
+    if CODEISH_RE.search(sent) and "can be declared" not in hay:
+        score -= 18
     if DESCRIPTION_PENALTY.search(sent):
         score -= 20
     if "abstract syntax" in hay and "must" not in hay:
@@ -166,19 +243,16 @@ def _sentence_score(sent: str, query_terms: list[str]) -> int:
     return score
 
 
-def cite_sentence(text: str, query_terms: list[str], max_words: int = 80, min_words: int = 40) -> str:
-    """Extract 1–2 normative sentences around the best matching term."""
+def cite_sentence(text: str, query_terms: list[str], max_words: int = 80, min_words: int = 12) -> str:
+    """Extract 1–2 complete sentences around the best matching term."""
     pinned = normative_line_quote(text, query_terms, max_words=max_words)
     if pinned:
-        return pinned
+        return fit_quote(pinned, max_words)
     sentences = _sentences(text)
     if not sentences:
         return excerpt(text, query_terms, max_words)
     if len(sentences) == 1:
-        words = WORD_RE.findall(sentences[0])
-        if len(words) <= max_words:
-            return sentences[0]
-        return " ".join(words[:max_words]).strip() + " …"
+        return fit_quote(sentences[0], max_words)
 
     best_idx = 0
     best_score = -999
@@ -192,19 +266,15 @@ def cite_sentence(text: str, query_terms: list[str], max_words: int = 80, min_wo
     total = word_count(picked[0])
     if total < min_words and best_idx + 1 < len(sentences):
         nxt = sentences[best_idx + 1]
-        if total + word_count(nxt) <= max_words:
+        if SENTENCE_END_RE.search(nxt) and total + word_count(nxt) <= max_words:
             picked.append(nxt)
             total += word_count(nxt)
     if total < min_words and best_idx > 0:
         prev = sentences[best_idx - 1]
-        if total + word_count(prev) <= max_words:
+        if SENTENCE_END_RE.search(prev) and total + word_count(prev) <= max_words:
             picked.insert(0, prev)
 
-    quote = " ".join(picked).strip()
-    words = WORD_RE.findall(quote)
-    if len(words) > max_words:
-        quote = " ".join(words[:max_words]).strip() + " …"
-    return quote
+    return fit_quote(" ".join(picked).strip(), max_words)
 
 
 def excerpt(text: str, query_terms: list[str], max_words: int) -> str:

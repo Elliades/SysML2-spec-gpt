@@ -5,9 +5,10 @@ import pymupdf
 from sysml_spec_qa.config import EUR_PER_MTOK, MAX_TOTAL_EXCERPT_WORDS
 from sysml_spec_qa.ingest.build import ingest
 from sysml_spec_qa.ingest.manifest import SpecDoc
+from sysml_spec_qa.mcp_server import _compact_pack
 from sysml_spec_qa.pack import answer_pack, cites_link, clause_pack
 from sysml_spec_qa.query import analyze_query
-from sysml_spec_qa.textutil import estimate_tokens, word_count
+from sysml_spec_qa.textutil import estimate_tokens, fold, word_count
 
 
 def _mini_ingest(tmp_path: Path, monkeypatch):
@@ -47,6 +48,15 @@ def test_analyze_query_fr(tmp_path, monkeypatch):
     q = analyze_query("c'est quoi les règles d'unicité des noms ?")
     assert q["language"] == "fr"
     assert "name_resolution" in q["intents"]
+
+
+def test_analyze_query_inventory_list_kind():
+    q = analyze_query("quels sont les éléments qui peuvent être mis dans un state")
+    assert q["language"] == "fr"
+    assert "inventory" in q["intents"]
+    assert q["answer_kind"] == "list"
+    assert "ments" not in {fold(t) for t in q["terms"]}
+    assert any("element" in fold(t) for t in q["terms"])
 
 
 def test_answer_pack_shape(tmp_path, monkeypatch):
@@ -94,11 +104,26 @@ def test_pack_tokens_after_refine_matches_excerpts(tmp_path, monkeypatch):
     assert str(pack.cost["excerpt_tokens"]) in pack.cost["footer_fr"]
 
 
+def test_answer_pack_skips_unrelated_exception(tmp_path, monkeypatch):
+    db = _mini_ingest(tmp_path, monkeypatch)
+    pack = answer_pack("what is a binding connector?", version="2.0", db_path=db)
+    assert pack.exception is None
+
+
 def test_cite_ref_viewer_url_carries_quote(tmp_path, monkeypatch):
     db = _mini_ingest(tmp_path, monkeypatch)
     pack = answer_pack("unicité des noms", version="2.0", db_path=db)
     assert pack.primary is not None
     assert "quote=" in pack.primary.viewer_url
+
+
+def test_mcp_pack_omits_format_markdown(tmp_path, monkeypatch):
+    db = _mini_ingest(tmp_path, monkeypatch)
+    pack = answer_pack("unicité des noms", version="2.0", db_path=db)
+    compact = _compact_pack(pack.to_dict())
+    assert "format_markdown" not in compact["answer_contract"]
+    assert compact["answer_contract"]["shape"][0] == "verdict"
+    assert pack.answer_contract.get("format_markdown")
 
 
 def test_clause_pack_and_cites_link(tmp_path, monkeypatch):
